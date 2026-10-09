@@ -183,16 +183,21 @@ function renderStats() {
     $('upcoming').innerHTML = upcoming.length ? upcoming.slice(0, 3).map(co => `<div class="upcoming-item"><i></i><button data-edit="${esc(co.id)}">${esc(co.name || '未命名公司')}</button><small>${days(co.deadline) === 0 ? '今天截止' : days(co.deadline) + ' 天后截止'}</small></div>`).join('') + (upcoming.length > 3 ? `<p class="quiet">另有 ${upcoming.length - 3} 家即将截止，筛选「待投清单」查看</p>` : '') : '<p class="quiet">暂无即将截止的待投机会，按自己的节奏前进。</p>';
 }
 function render() { renderStats(); renderTable(); }
+function sortCompanies(list, sort) {
+    const result = [...list];
+    if (sort === 'applied')
+        result.sort((a, b) => (b.appliedAt || '').localeCompare(a.appliedAt || ''));
+    if (sort === 'deadline')
+        result.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
+    if (sort === 'name')
+        result.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    if (sort === 'status')
+        result.sort((a, b) => STATUSES.indexOf(b.status) - STATUSES.indexOf(a.status));
+    return result;
+}
 function renderTable() {
     const query = $('q').value.trim().toLowerCase(), status = $('statusfilter').value;
-    const list = state.companies.filter(co => (view === 'all' || view === 'todo' && co.status === '未投' || view === 'live' && LIVE.includes(co.status) || view === 'oc' && co.status === 'OC') && (!status || co.status === status) && (!query || [co.name, co.dept, co.note, ...co.roles].join(' ').toLowerCase().includes(query)));
-    const sort = $('sort').value;
-    if (sort === 'deadline')
-        list.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
-    if (sort === 'name')
-        list.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
-    if (sort === 'status')
-        list.sort((a, b) => STATUSES.indexOf(b.status) - STATUSES.indexOf(a.status));
+    const list = sortCompanies(state.companies.filter(co => (view === 'all' || view === 'todo' && co.status === '未投' || view === 'live' && LIVE.includes(co.status) || view === 'oc' && co.status === 'OC') && (!status || co.status === status) && (!query || [co.name, co.dept, co.note, ...co.roles].join(' ').toLowerCase().includes(query))), $('sort').value);
     $('view-title').innerHTML = ({ all: '全部投递', todo: '待投清单', live: '进行中', oc: '收获 Offer' }[view]) + ` <span>${list.length}</span>`;
     $('rows').innerHTML = list.map(co => {
         const remaining = days(co.deadline);

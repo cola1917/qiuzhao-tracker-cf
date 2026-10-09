@@ -1,5 +1,5 @@
 :root,:root[data-theme]{color-scheme:light;--bg:#f8f7f3;--surface:#fffefa;--soft:#eeece5;--ink:#242726;--muted:#81837b;--line:#dedfd6;--green:#c55333;--green-soft:#f7e7df;--danger:#b74339;--shadow:0 18px 70px #30271915}
-body{background:#f8f7f3;font-family:'Segoe UI','Microsoft YaHei',sans-serif}
+body{background:#f8f7f3;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
 .sidebar{position:static;width:100%;height:83px;display:flex;flex-direction:row;align-items:center;padding:0 48px;background:transparent;border:0;border-bottom:1px solid #d8dad0;gap:65px}
 .brand{font-size:23px;letter-spacing:1px;flex:none}
 .brandmark,:root[data-theme] .brandmark{border-radius:50%;background:#c65334;color:#fff;width:36px;height:36px;font-size:25px}
@@ -30,7 +30,7 @@ main{margin:0}
 .stat:last-child{border-right:0;margin-right:0;padding-right:0}
 .stat-label,.stat:first-child .stat-label,:root[data-theme] .stat:first-child .stat-label{color:#737a69;font-size:11px;letter-spacing:1px}
 .stat-label i{font-size:16px;color:#89907d;font-style:normal}
-.stat strong{font-family:Georgia,serif;font-weight:400;font-size:49px;line-height:1.65;letter-spacing:-2px}
+.stat strong{font-family:inherit;font-weight:600;font-size:44px;line-height:1.65;letter-spacing:-1px;font-variant-numeric:tabular-nums}
 .stat:first-child strong{color:#c55333}
 .stat small,.stat:first-child small,:root[data-theme] .stat:first-child small{color:#919488;font-size:9px}
 .overview{grid-template-columns:1.6fr 1fr;gap:38px;margin-bottom:30px}
@@ -46,7 +46,7 @@ main{margin:0}
 .stage:nth-child(3) .track i{background:#b79d6d}
 .stage:nth-child(4) .track i{background:#829574}
 .stage-label{font-size:9px}
-.stage b{font-family:Georgia,serif;font-size:24px;margin-top:4px;font-weight:400;color:#495140}
+.stage b{font-family:inherit;font-size:24px;margin-top:4px;font-weight:600;color:#495140;font-variant-numeric:tabular-nums}
 .upcoming-item{border-bottom:1px dashed #d8dace;padding:2px 0 12px;margin-top:14px}
 .upcoming-item button{font-size:11px}
 .upcoming-item small{font-size:10px;color:#ae714a}
@@ -123,3 +123,18 @@ td{padding:13px 10px;border-color:#e7e9df}
 
 /* Put status counts directly below navigation. */
 .content{padding-top:0}.stats{border-top:1px solid var(--line)}.stat,.stat:first-child,:root[data-theme] .stat:first-child{margin-top:12px;margin-bottom:15px;padding-top:12px;padding-bottom:16px}@media(max-width:760px){.stat,.stat:first-child,:root[data-theme] .stat:first-child{margin-top:8px;margin-bottom:8px;padding-top:8px;padding-bottom:10px}}
+
+/* Comfortable type sizes across the workbench. */
+.nav{font-size:14px}
+.topbar,.saveflag,.stat small,.stat:first-child small,:root[data-theme] .stat:first-child small,.section-title>span,.stage-label,.records-head p,.tablefoot,.pagefoot{font-size:12px;color:#687060}
+.btn,.search input,.select-wrap,.select-wrap select,.upcoming-item button,.inline-input{font-size:14px}
+.select-wrap select{max-width:190px}
+.stat-label,.stat:first-child .stat-label,:root[data-theme] .stat:first-child .stat-label{font-size:14px;letter-spacing:0}
+.section-title h2{font-size:15px}
+.records h2{font-size:17px}
+th{font-size:13px;letter-spacing:0;font-weight:600}
+.inline-input.company-name{font-size:15px;font-weight:600}
+.inline-input[data-field="link"],.inline-input[data-field="dept"],.inline-input[type="date"],.inline-input::placeholder,.placeholder,.role-chip,.role-choice,.role-add input,.upcoming-item small,.due{font-size:12px;color:#687060}
+.inline-input[type="date"]{width:145px}
+.inline-status{font-size:13px;width:92px}
+@media(max-width:760px){.nav{font-size:13px}.topbar,.saveflag{font-size:11px}.section-title>span{font-size:11px}}
