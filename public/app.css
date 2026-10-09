@@ -269,3 +269,6 @@ td.role-cell{width:230px;min-width:200px}
 .role-add input{width:100%;min-width:0;border:1px solid var(--line);border-radius:4px;padding:5px;background:var(--bg);color:var(--ink);font-size:10px}
 .date .due{padding-left:6px}
 
+
+.records-actions{display:flex;align-items:center;gap:14px;flex-shrink:0}
+@media(max-width:480px){.records-head{gap:12px;flex-wrap:wrap}.records-actions{gap:10px}.records-actions>.btn{padding:8px 11px}}
