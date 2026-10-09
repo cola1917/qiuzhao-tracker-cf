@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 type Bindings = {
     DB: D1Database;
     ASSETS: Fetcher;
-    ACCESS_TOKEN?: string;
 };
 export type Company = {
     id: string;
@@ -50,16 +49,7 @@ const app = new Hono<{
 }>();
 app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
-    if (!c.env.ACCESS_TOKEN)
-        return c.json({ error: '请先为 Worker 配置 ACCESS_TOKEN 访问密钥' }, 503);
-    const token = c.req.header('Authorization')?.replace(/^Bearer /, '') || '';
-    const digest = async (value: string) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
-    const [a, b] = await Promise.all([digest(token), digest(c.env.ACCESS_TOKEN)]);
-    let difference = 0;
-    for (let i = 0; i < a.length; i++)
-        difference |= a[i] ^ b[i];
-    if (difference)
-        return c.json({ error: '访问密钥不正确' }, 401);
+    // Authentication is handled by the configured Cloudflare Access policy.
     await next();
 });
 async function read(db: D1Database): Promise<Snapshot> {

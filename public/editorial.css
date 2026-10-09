@@ -120,3 +120,6 @@ td{padding:13px 10px;border-color:#e7e9df}
 .header-actions .text-btn{white-space:nowrap}
 }
 
+
+/* Put status counts directly below navigation. */
+.content{padding-top:0}.stats{border-top:1px solid var(--line)}.stat,.stat:first-child,:root[data-theme] .stat:first-child{margin-top:12px;margin-bottom:15px;padding-top:12px;padding-bottom:16px}@media(max-width:760px){.stat,.stat:first-child,:root[data-theme] .stat:first-child{margin-top:8px;margin-bottom:8px;padding-top:8px;padding-bottom:10px}}

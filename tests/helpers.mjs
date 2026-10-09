@@ -18,5 +18,5 @@ export function database() {
         } } };
 }
 export const company = (id, roles = []) => ({ id, name: id, roles, link: '', dept: '', deadline: '', appliedAt: '', status: '未投', note: '' });
-export function request(env, path = '/api/data', method = 'GET', body, headers = {}) { return app.request(path, { method, headers: { Authorization: 'Bearer test-only-key', 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) }, env); }
-export const environment = () => ({ DB: database(), ACCESS_TOKEN: 'test-only-key' });
+export function request(env, path = '/api/data', method = 'GET', body, headers = {}) { return app.request(path, { method, headers: { 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) }, env); }
+export const environment = () => ({ DB: database() });

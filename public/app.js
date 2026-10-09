@@ -4,7 +4,7 @@ const STATUSES = ['未投', '已投', '测评', '笔试', '一面', '二面', '�
 const LIVE = ['测评', '笔试', '一面', '二面', '三面'];
 const DEFAULT_ROLES = ['具身智能算法', '机器人算法', 'VLA / 多模态算法', '机器人仿真', 'Sim2Real', '感知算法', 'SLAM / 定位', '运动规划', '运动控制', '强化学习', '大模型算法', 'AI Infra', '端侧部署', '机械工程师', '结构工程师', '软件开发'];
 const emptyState = () => ({ v: 2, revision: 0, roles: [...DEFAULT_ROLES], companies: [] });
-let state = emptyState(), mode = 'locked', token = '', dirty = false, saving = false, generation = 0, timer, blocked = false, pending = null;
+let state = emptyState(), mode = 'loading', dirty = false, saving = false, generation = 0, timer, blocked = false, pending = null;
 let view = 'all';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -72,8 +72,13 @@ function normalize(raw) {
     return result;
 }
 async function api(path, options = {}) {
-    const response = await fetch('/api/' + path, { ...options, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...options.headers } });
-    const data = await response.json().catch(() => ({ error: '服务返回了无效响应' }));
+    const response = await fetch('/api/' + path, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } });
+    if (!response.headers.get('content-type')?.includes('application/json')) {
+        const error = new Error('登录状态可能已过期，请刷新页面完成 Cloudflare 验证');
+        error.status = 401;
+        throw error;
+    }
+    const data = await response.json();
     if (!response.ok) {
         const error = new Error(data.error || '连接失败');
         error.status = response.status;
@@ -87,7 +92,7 @@ function changed(refresh = true) { generation++; dirty = true; blocked = false; 
 else
     renderStats(); }
 async function save() {
-    if (!dirty || saving || blocked || mode === 'locked')
+    if (!dirty || saving || blocked || mode === 'loading')
         return;
     if (mode === 'local') {
         dirty = false;
@@ -149,7 +154,6 @@ async function connect() {
     $('recovery').hidden = !(pending?.pending && pending.state);
     if (!pending?.pending)
         cache();
-    $('auth').close();
     $('storage-label').textContent = '私人空间 · 云端同步';
     $('reload').hidden = false;
     flag('ok', '已同步到云端');
@@ -205,7 +209,7 @@ function statusClass(status) { return status === 'OC' ? 'oc' : LIVE.includes(sta
 function dueText(date) { const n = days(date); return n === null ? '' : n < 0 ? '已截止' : n === 0 ? '今天截止' : '剩余 ' + n + ' 天'; }
 function roleSummary(co) { return co.roles.length ? co.roles.map(r => `<span class="role-chip">${esc(r)}</span>`).join('') : '<span class="placeholder">选择岗位…</span>'; }
 function addCompany() {
-    if (mode === 'locked')
+    if (mode === 'loading')
         return;
     if (state.companies.length >= 2000) {
         notice('最多保存 2000 条记录。', true);
@@ -371,37 +375,13 @@ $('reload').onclick = async () => { if (saving) {
 catch (error) {
     notice(error.message, true);
 } };
-$('login').onsubmit = async (e) => { e.preventDefault(); const button = e.target.querySelector('[type=submit]'); button.disabled = true; token = $('token').value; try {
-    await connect();
-    try {
-        sessionStorage.setItem('qiuzhao-token', token);
-    }
-    catch { }
-    $('token').value = '';
-}
-catch (error) {
-    $('auth-error').textContent = error.message;
-}
-finally {
-    button.disabled = false;
-} };
-$('auth').addEventListener('cancel', e => e.preventDefault());
-$('local-mode').onclick = () => { mode = 'local'; token = ''; try {
+$('local-mode').onclick = () => { if (saving || dirty) { notice('请先等待当前修改保存，或导出备份后再切换模式。', true); return; } mode = 'local'; try {
     state = normalize(readStorage(cacheKey())?.state || readStorage('qiuzhao-tracker-v2') || emptyState());
 }
 catch {
     state = emptyState();
     notice('本地数据格式无效，请从备份文件恢复。', true);
-} dirty = false; $('auth').close(); $('recovery').hidden = true; $('reload').hidden = true; $('storage-label').textContent = '仅存于此浏览器 · 记得定期备份'; flag('ok', '浏览器模式'); render(); };
-$('lock').onclick = () => { if (saving) {
-    notice('正在同步，请稍后退出。');
-    return;
-} if (dirty && !confirm('有未同步修改，已尝试暂存到浏览器。确定退出？'))
-    return; clearTimeout(timer); if (dirty)
-    cache(); try {
-    sessionStorage.removeItem('qiuzhao-token');
-}
-catch { } token = ''; mode = 'locked'; dirty = false; state = emptyState(); notice(''); $('recovery').hidden = true; render(); flag('ok', '已退出'); $('auth').showModal(); };
+} dirty = false; $('recovery').hidden = true; $('reload').hidden = false; $('storage-label').textContent = '仅存于此浏览器 · 记得定期备份'; flag('ok', '浏览器模式'); render(); };
 let theme;
 try {
     theme = localStorage.getItem('qiuzhao-theme');
@@ -422,12 +402,11 @@ window.addEventListener('beforeunload', e => { if (dirty || saving) {
 } });
 window.addEventListener('online', () => { if (dirty && !blocked)
     save(); });
-$('today').textContent = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }) + '  /  YOUR NEXT CHAPTER';
+// Remove the retired application password from this tab; Cloudflare owns login.
+try { sessionStorage.removeItem('qiuzhao-token'); } catch {}
 render();
-$('auth').showModal();
-try {
-    token = sessionStorage.getItem('qiuzhao-token') || '';
-}
-catch { }
-if (token)
-    connect().catch(error => { $('auth-error').textContent = error.message; });
+flag('saving', '正在加载…');
+connect().catch(error => {
+    flag('error', '云端连接失败');
+    notice(error.message + '。请刷新页面重试，或在数据管理中选择仅在此浏览器使用。', true);
+});

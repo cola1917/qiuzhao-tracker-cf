@@ -2,5 +2,4 @@
 interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
-  ACCESS_TOKEN?: string;
 }

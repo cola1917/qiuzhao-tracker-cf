@@ -20,10 +20,6 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
-      - name: Validate access secret
-        env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        run: test -n "$ACCESS_TOKEN"
       - name: Apply migrations
         uses: cloudflare/wrangler-action@v3
         with:
@@ -36,7 +32,3 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
-          secrets: |
-            ACCESS_TOKEN
-        env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}

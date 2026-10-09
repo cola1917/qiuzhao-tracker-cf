@@ -1,1 +1,1 @@
-ACCESS_TOKEN=replace-with-a-long-random-secret
+# No application access token is required. Authentication is provided by Cloudflare Access.

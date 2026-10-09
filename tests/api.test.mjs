@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { environment, request, company } from './helpers.mjs';
-test('API requires configured secret and valid credentials', async () => { const env = environment(); assert.equal((await request({ ...env, ACCESS_TOKEN: undefined })).status, 503); assert.equal((await request(env, '/api/data', 'GET', undefined, { Authorization: '' })).status, 401); assert.equal((await request(env)).status, 200); });
+test('API behind Cloudflare Access needs no application password and never caches data', async () => {
+ const response = await request(environment());
+ assert.equal(response.status, 200);
+ assert.equal(response.headers.get('cache-control'), 'no-store');
+});
+
 test('snapshot replacement deletes absent rows, preserves roles and accepts empty state', async () => { const env = environment(); let data = { revision: 0, roles: ['自定义'], companies: [company('a', ['自定义']), company('b')] }; assert.equal((await request(env, '/api/data', 'PUT', data)).status, 200); let loaded = await (await request(env)).json(); assert.deepEqual(loaded.roles, ['自定义']); assert.equal(loaded.companies.length, 2); data = { ...loaded, companies: [loaded.companies[0]] }; assert.equal((await request(env, '/api/data', 'PUT', data)).status, 200); loaded = await (await request(env)).json(); assert.deepEqual(loaded.companies.map(c => c.id), ['a']); assert.equal((await request(env, '/api/data', 'PUT', { ...loaded, roles: [], companies: [] })).status, 200); loaded = await (await request(env)).json(); assert.deepEqual(loaded.roles, []); assert.deepEqual(loaded.companies, []); });
 test('stale device cannot overwrite newer data or roles', async () => { const env = environment(); const first = { revision: 0, roles: ['R'], companies: [company('a', ['R'])] }; await request(env, '/api/data', 'PUT', first); assert.equal((await request(env, '/api/data', 'PUT', { revision: 0, roles: [], companies: [] })).status, 409); const loaded = await (await request(env)).json(); assert.equal(loaded.revision, 1); assert.deepEqual(loaded.roles, ['R']); assert.equal(loaded.companies[0].id, 'a'); });
 test('role deletion removes associations atomically using standard SQLite', async () => { const env = environment(); await request(env, '/api/data', 'PUT', { revision: 0, roles: ['R'], companies: [company('a', ['R'])] }); assert.equal((await request(env, '/api/roles/R', 'DELETE', undefined, { 'If-Match': '1' })).status, 200); const loaded = await (await request(env)).json(); assert.deepEqual(loaded.roles, []); assert.deepEqual(loaded.companies[0].roles, []); });
