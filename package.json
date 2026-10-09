@@ -9,7 +9,13 @@
     "db:create": "wrangler d1 create qiuzhao-tracker-db",
     "db:migrate:local": "wrangler d1 migrations apply qiuzhao-tracker-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply qiuzhao-tracker-db --remote",
-    "db:seed": "wrangler d1 execute qiuzhao-tracker-db --local --file=./migrations/0001_init.sql"
+    "db:seed": "wrangler d1 execute qiuzhao-tracker-db --local --file=./migrations/0001_init.sql",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "preview": "node scripts/preview.mjs",
+    "check": "npm run typecheck && npm test",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "preview:styles": "node scripts/style-preview.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0"
@@ -18,5 +24,8 @@
     "@cloudflare/workers-types": "^4.20241009.0",
     "wrangler": "^3.80.0",
     "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

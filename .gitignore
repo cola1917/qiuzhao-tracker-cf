@@ -4,3 +4,8 @@ dist
 *.log
 .DS_Store
 *.local.sqlite3
+.dev.vars
+.dev.vars.*
+.npm-cache
+artifacts
+!.dev.vars.example

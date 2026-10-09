@@ -1,0 +1,3 @@
+ALTER TABLE companies ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE sync_meta (id INTEGER PRIMARY KEY CHECK (id = 1), revision INTEGER NOT NULL DEFAULT 0, write_token TEXT NOT NULL DEFAULT '');
+INSERT INTO sync_meta (id, revision) VALUES (1, 0);
