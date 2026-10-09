@@ -1,0 +1,22 @@
+{
+  "name": "qiuzhao-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create qiuzhao-tracker-db",
+    "db:migrate:local": "wrangler d1 migrations apply qiuzhao-tracker-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply qiuzhao-tracker-db --remote",
+    "db:seed": "wrangler d1 execute qiuzhao-tracker-db --local --file=./migrations/0001_init.sql"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241009.0",
+    "wrangler": "^3.80.0",
+    "typescript": "^5.6.0"
+  }
+}
