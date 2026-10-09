@@ -22,41 +22,6 @@ type Company = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// 简单密钥中间件
-const ACCESS_KEY = "toudi2024"; // 修改为你想要的密钥，建议改复杂点
-
-app.use('*', async (c, next) => {
-  const url = new URL(c.req.url);
-  const key = url.searchParams.get("key");
-  const auth = c.req.header("Authorization");
-  
-  const valid = key === ACCESS_KEY || auth === `Bearer ${ACCESS_KEY}`;
-  
-  // 静态资源和登录页放行
-  if (c.req.path.startsWith("/favicon") || c.req.path === "/login") {
-    return next();
-  }
-  
-  if (!valid) {
-    // API 返回 401
-    if (c.req.path.startsWith("/api/")) {
-      return c.json({ error: "Unauthorized", message: "需要密钥访问，格式：?key=xxx 或 Header: Authorization: Bearer xxx" }, 401);
-    }
-    // 页面显示简单密钥输入页
-    return c.html(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>投递管理 - 需要密钥</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{font-family:system-ui,sans-serif;max-width:400px;margin:100px auto;padding:20px;text-align:center}input{padding:12px 16px;font-size:16px;border:1px solid #ddd;border-radius:8px;width:70%}button{padding:12px 24px;font-size:16px;background:#2f4a7d;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:8px}button:hover{filter:brightness(1.1)}</style>
-</head><body>
-<h2>🔒 投递管理</h2><p>请输入访问密钥</p>
-<form onsubmit="event.preventDefault();const k=pwd.value;location.href='/?key='+encodeURIComponent(k)">
-<input name="pwd" id="pwd" placeholder="输入密钥" autocomplete="off"><button>进入</button>
-</form><p style="color:#666;font-size:14px;margin-top:16px">或在 URL 后加 <code>?key=你的密钥</code></p>
-</body></html>`, 200);
-  }
-  await next();
-});
-
 app.use('*', cors({
   origin: ['*'],
   allowMethods: ['GET', 'PUT', 'OPTIONS'],
