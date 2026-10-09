@@ -10,7 +10,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "qiuzhao-tracker-db"
-database_id = "<your-database-id>"
+database_id = "cc0d0c94-d524-4210-b358-f2a0257b7618"
 
 [vars]
 ENVIRONMENT = "production"
