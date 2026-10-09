@@ -1,4 +1,4 @@
-name = "qiuzhao-tracker"
+name = "toudi-guanli"
 main = "src/worker.ts"
 compatibility_date = "2024-10-09"
 compatibility_flags = ["nodejs_compat"]

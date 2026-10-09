@@ -1,4 +1,4 @@
-# 秋招投递追踪台 - Cloudflare Workers 版
+# 投递管理 - Cloudflare Workers 版
 
 基于 Cloudflare Workers + D1 数据库的秋招投递追踪工具，支持多端同步、免费部署。
 
