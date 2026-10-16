@@ -46,6 +46,9 @@ function normalize(raw) {
         const co = {};
         co.id = typeof original.id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(original.id) && !ids.has(original.id) ? original.id : crypto.randomUUID();
         ids.add(co.id);
+        co.updatedAt = original.updatedAt ?? 0;
+        if (!Number.isSafeInteger(co.updatedAt) || co.updatedAt < 0)
+            throw new Error('备份中有无效的编辑时间');
         for (const f of ['name', 'link', 'deadline', 'dept', 'appliedAt', 'note']) {
             co[f] = typeof original[f] === 'string' ? original[f] : '';
             if (co[f].length > 5000)
@@ -183,8 +186,13 @@ function renderStats() {
     $('upcoming').innerHTML = upcoming.length ? upcoming.slice(0, 3).map(co => `<div class="upcoming-item"><i></i><button data-edit="${esc(co.id)}">${esc(co.name || '未命名公司')}</button><small>${days(co.deadline) === 0 ? '今天截止' : days(co.deadline) + ' 天后截止'}</small></div>`).join('') + (upcoming.length > 3 ? `<p class="quiet">另有 ${upcoming.length - 3} 家即将截止，筛选「待投清单」查看</p>` : '') : '<p class="quiet">暂无即将截止的待投机会，按自己的节奏前进。</p>';
 }
 function render() { renderStats(); renderTable(); }
+function touchCompany(co) {
+    co.updatedAt = Math.max(Date.now(), ...state.companies.map(c => (c.updatedAt || 0) + 1));
+}
 function sortCompanies(list, sort) {
     const result = [...list];
+    if (sort === 'added')
+        result.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     if (sort === 'applied')
         result.sort((a, b) => (b.appliedAt || '').localeCompare(a.appliedAt || ''));
     if (sort === 'deadline')
@@ -221,6 +229,7 @@ function addCompany() {
         return;
     }
     const co = { id: crypto.randomUUID(), name: '', link: '', deadline: '', appliedAt: '', roles: [], dept: '', status: '未投', note: '' };
+    touchCompany(co);
     state.companies.unshift(co);
     view = 'all';
     $('q').value = '';
@@ -274,8 +283,10 @@ document.addEventListener('click', e => {
         if (!state.roles.includes(role))
             state.roles.push(role);
         const co = state.companies.find(c => c.id === add.dataset.addRole);
-        if (!co.roles.includes(role))
+        if (!co.roles.includes(role)) {
             co.roles.push(role);
+            touchCompany(co);
+        }
         changed();
         document.querySelector('[data-role-menu="' + co.id + '"]').open = true;
     }
@@ -284,7 +295,12 @@ document.addEventListener('click', e => {
         const role = state.roles[Number(remove.dataset.deleteRole)];
         if (confirm('从所有投递中移除岗位「' + role + '」？')) {
             state.roles = state.roles.filter(r => r !== role);
-            state.companies.forEach(c => c.roles = c.roles.filter(r => r !== role));
+            state.companies.forEach(c => {
+                if (c.roles.includes(role)) {
+                    c.roles = c.roles.filter(r => r !== role);
+                    touchCompany(c);
+                }
+            });
             changed();
         }
     }
@@ -294,9 +310,10 @@ $('rows').addEventListener('input', e => {
     if (!field)
         return;
     const co = state.companies.find(c => c.id === e.target.dataset.id);
-    if (!co)
+    if (!co || co[field] === e.target.value)
         return;
     co[field] = e.target.value;
+    touchCompany(co);
     if (field === 'deadline') {
         const due = e.target.parentElement.querySelector('[data-due]');
         due.textContent = dueText(co.deadline);
@@ -307,7 +324,10 @@ $('rows').addEventListener('input', e => {
 $('rows').addEventListener('change', e => {
     if (e.target.dataset.status) {
         const co = state.companies.find(c => c.id === e.target.dataset.status);
+        if (co.status === e.target.value)
+            return;
         co.status = e.target.value;
+        touchCompany(co);
         e.target.className = 'inline-status ' + statusClass(co.status);
         if (co.status !== '未投' && !co.appliedAt) {
             co.appliedAt = today();
@@ -320,9 +340,17 @@ $('rows').addEventListener('change', e => {
         co.roles = co.roles.filter(r => r !== role);
         if (e.target.checked)
             co.roles.push(role);
+        touchCompany(co);
         e.target.closest('details').querySelector('summary').innerHTML = roleSummary(co);
         changed(false);
     }
+});
+$('rows').addEventListener('focusout', () => {
+    // Keep the row stable while filling its fields; reorder after leaving the table.
+    setTimeout(() => {
+        if ($('sort').value === 'added' && !$('rows').contains(document.activeElement))
+            renderTable();
+    }, 0);
 });
 $('rows').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.new-role')) {
     e.preventDefault();

@@ -13,6 +13,7 @@ export type Company = {
     appliedAt: string;
     status: string;
     note: string;
+    updatedAt?: number;
 };
 type Snapshot = {
     v: number;
@@ -36,6 +37,8 @@ export function validateSnapshot(input: unknown): Snapshot {
         if (!co || fields.some(f => typeof co[f] !== 'string' || co[f].length > 5000) || !/^[a-zA-Z0-9_-]{1,100}$/.test(co.id) || ids.has(co.id))
             throw new Error('公司字段或编号无效');
         ids.add(co.id);
+        if (co.updatedAt !== undefined && (!Number.isSafeInteger(co.updatedAt) || co.updatedAt < 0))
+            throw new Error('编辑时间无效');
         if (!statuses.includes(co.status) || !Array.isArray(co.roles) || co.roles.some(r => !roles.includes(r)))
             throw new Error('状态或岗位无效');
         for (const date of [co.deadline, co.appliedAt])
@@ -58,7 +61,7 @@ async function read(db: D1Database): Promise<Snapshot> {
         db.prepare('SELECT name FROM roles ORDER BY sort_order'),
         db.prepare('SELECT revision FROM sync_meta WHERE id = 1'),
     ]);
-    return { v: 2, revision: Number(meta.results[0].revision), roles: roles.results.map(r => String(r.name)), companies: companies.results.map(r => ({ id: String(r.id), name: String(r.name), link: String(r.link), deadline: String(r.deadline), roles: JSON.parse(String(r.roles)), dept: String(r.dept), appliedAt: String(r.applied_at), status: String(r.status), note: String(r.note) })) };
+    return { v: 2, revision: Number(meta.results[0].revision), roles: roles.results.map(r => String(r.name)), companies: companies.results.map(r => ({ id: String(r.id), name: String(r.name), link: String(r.link), deadline: String(r.deadline), roles: JSON.parse(String(r.roles)), dept: String(r.dept), appliedAt: String(r.applied_at), status: String(r.status), note: String(r.note), updatedAt: Math.round(Number(r.updated_at) * 1000) })) };
 }
 async function write(db: D1Database, data: Snapshot) {
     const token = crypto.randomUUID();
@@ -68,8 +71,8 @@ async function write(db: D1Database, data: Snapshot) {
         db.prepare(`DELETE FROM companies WHERE ${gate}`).bind(token),
         db.prepare(`DELETE FROM roles WHERE ${gate}`).bind(token),
         db.prepare(`INSERT INTO roles(name,sort_order) SELECT value,key FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(data.roles), token),
-        db.prepare(`INSERT INTO companies(id,name,link,deadline,roles,dept,applied_at,status,note,position)
-      SELECT json_extract(value,'$.id'),json_extract(value,'$.name'),json_extract(value,'$.link'),json_extract(value,'$.deadline'),json_extract(value,'$.roles'),json_extract(value,'$.dept'),json_extract(value,'$.appliedAt'),json_extract(value,'$.status'),json_extract(value,'$.note'),key FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(data.companies), token),
+        db.prepare(`INSERT INTO companies(id,name,link,deadline,roles,dept,applied_at,status,note,position,updated_at)
+      SELECT json_extract(value,'$.id'),json_extract(value,'$.name'),json_extract(value,'$.link'),json_extract(value,'$.deadline'),json_extract(value,'$.roles'),json_extract(value,'$.dept'),json_extract(value,'$.appliedAt'),json_extract(value,'$.status'),json_extract(value,'$.note'),key,COALESCE(json_extract(value,'$.updatedAt'),0) / 1000.0 FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(data.companies), token),
     ];
     const results = await db.batch(batch);
     return results[0].meta.changes > 0;
@@ -122,7 +125,12 @@ app.delete('/api/roles/:name', async (c) => {
         return c.json({ error: '请提供当前数据版本 If-Match' }, 409);
     const name = c.req.param('name');
     data.roles = data.roles.filter(r => r !== name);
-    data.companies.forEach(co => co.roles = co.roles.filter(r => r !== name));
+    data.companies.forEach(co => {
+        if (co.roles.includes(name)) {
+            co.roles = co.roles.filter(r => r !== name);
+            co.updatedAt = Math.max(Date.now(), (co.updatedAt || 0) + 1);
+        }
+    });
     if (!await write(c.env.DB, data))
         return c.json({ error: '数据版本已变化' }, 409);
     return c.json({ ok: true, revision: data.revision + 1 });

@@ -18,6 +18,30 @@ test('invalid ids, dates, duplicate IDs, shapes and statuses are rejected withou
 test('transaction failure rolls back version and original records', async () => { const env = environment(); await request(env, '/api/data', 'PUT', { revision: 0, roles: [], companies: [company('a')] }); env.DB.db.exec("CREATE TRIGGER fail_insert BEFORE INSERT ON companies WHEN NEW.name = 'fail' BEGIN SELECT RAISE(ABORT, 'test rollback'); END;"); const result = await request(env, '/api/data', 'PUT', { revision: 1, roles: [], companies: [company('fail')] }); assert.equal(result.status, 500); const loaded = await (await request(env)).json(); assert.equal(loaded.revision, 1); assert.equal(loaded.companies[0].id, 'a'); });
 test('company ordering survives round trip', async () => { const env = environment(); await request(env, '/api/data', 'PUT', { revision: 0, roles: [], companies: [company('z'), company('a'), company('m')] }); assert.deepEqual((await (await request(env)).json()).companies.map(c => c.id), ['z', 'a', 'm']); });
 
+test('record edit times survive saves without touching unrelated rows, including millisecond precision', async () => {
+ const env = environment();
+ let data = {revision:0, roles:[], companies:[{...company('a'), updatedAt:1792123456789}, {...company('b'), updatedAt:1792123456788}]};
+ assert.equal((await request(env, '/api/data', 'PUT', data)).status, 200);
+ data = await (await request(env)).json();
+ assert.equal(data.companies[0].updatedAt,1792123456789);
+ data.companies[1].note = 'edited';
+ data.companies[1].updatedAt = 1792123456791;
+ assert.equal((await request(env, '/api/data', 'PUT', data)).status, 200);
+ const loaded = await (await request(env)).json();
+ assert.deepEqual(loaded.companies.map(c=>c.updatedAt),[1792123456789,1792123456791]);
+ loaded.companies[0].updatedAt = -1;
+ assert.equal((await request(env, '/api/data', 'PUT', loaded)).status,400);
+});
+
+test('legacy timestamps load in milliseconds and old backups without edit times remain accepted', async () => {
+ const env = environment();
+ env.DB.db.prepare('INSERT INTO companies(id,updated_at) VALUES (?,?)').run('legacy',1700000000);
+ const loaded = await (await request(env)).json();
+ assert.equal(loaded.companies[0].updatedAt,1700000000000);
+ assert.equal((await request(env, '/api/data', 'PUT', {revision:0,roles:[],companies:[company('backup')]})).status,200);
+ assert.equal((await (await request(env)).json()).companies[0].updatedAt,0);
+});
+
 test('legacy seed import does not overwrite existing user edits', async () => {
     const { readFileSync } = await import('node:fs');
     const env = environment();

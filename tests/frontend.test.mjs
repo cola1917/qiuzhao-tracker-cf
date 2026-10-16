@@ -14,7 +14,39 @@ test('application dates sort newest first, with blanks last and stable ties, wit
  assert.equal(h.run("sortCompanies(records, 'applied').map(c=>c.id).join(',')"), 'newer,same-day,older,blank');
  assert.equal(h.ctx.records.map(c=>c.id).join(','), 'blank,older,newer,same-day');
  assert.equal(h.run("sortCompanies(records, 'added')[0].id"), 'blank');
- assert.match(readFileSync(new URL('../public/index.html', import.meta.url), 'utf8'), /id="sort"[^>]*><option value="applied">/);
+});
+
+test('default record order uses last edit time, preserves legacy ties, and retains metadata through normalization', () => {
+ const h = harness();
+ h.ctx.records = [{...co('legacy'), updatedAt:0}, {...co('old'), updatedAt:1000}, {...co('recent'), updatedAt:2000}, co('legacy-two')];
+ assert.equal(h.run("sortCompanies(records, 'added').map(c=>c.id).join(',')"), 'recent,old,legacy,legacy-two');
+ h.run('state.companies=records;touchCompany(records[1])');
+ assert.equal(h.run("sortCompanies(records, 'added')[0].id"), 'old');
+ assert.equal(h.run('records[2].updatedAt'), 2000);
+ assert.equal(h.run('normalize({companies:records, roles:[]}).companies[1].updatedAt'), h.run('records[1].updatedAt'));
+ assert.match(readFileSync(new URL('../public/index.html', import.meta.url), 'utf8'), /id="sort"[^>]*><option value="added">/);
+ h.ctx.records[0].updatedAt = 'invalid';
+ assert.throws(()=>h.run('normalize({companies:records, roles:[]})'), /编辑时间/);
+});
+
+test('inline note, status and role edits advance record order without changing untouched records', () => {
+ const h = harness();
+ h.ctx.handlers = {};
+ h.ctx.rowNode = {addEventListener:(event, handler)=>{h.ctx.handlers[event]=handler;}};
+ h.run("document.getElementById = () => rowNode; changed=()=>{};state.companies=[{id:'a',note:'old',roles:[],status:'未投',appliedAt:'2026-10-01',updatedAt:1},{id:'b',updatedAt:2}];state.roles=['R']");
+ const source = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+ h.run(source.slice(source.indexOf("$('rows').addEventListener('input'"),source.indexOf("$('rows').addEventListener('focusout'")));
+ h.run("handlers.input({target:{dataset:{field:'note',id:'a'},value:'new'}})");
+ assert.equal(h.run("sortCompanies(state.companies,'added')[0].id"),'a');
+ const noteTime=h.run('state.companies[0].updatedAt');
+ h.run("handlers.input({target:{dataset:{field:'note',id:'a'},value:'new'}})");
+ assert.equal(h.run('state.companies[0].updatedAt'),noteTime);
+ h.run("handlers.change({target:{dataset:{status:'a'},value:'一面'}})");
+ assert.ok(h.run('state.companies[0].updatedAt')>noteTime);
+ const statusTime=h.run('state.companies[0].updatedAt');
+ h.run("handlers.change({target:{dataset:{companyRole:'a',roleIndex:'0'},checked:true,closest:()=>({querySelector:()=>({})})}})");
+ assert.ok(h.run('state.companies[0].updatedAt')>statusTime);
+ assert.equal(h.run('state.companies[1].updatedAt'),2);
 });
 test('import replaces unsafe IDs and never interpolates raw markup', () => { const h = harness(); h.ctx.input = { roles: [], companies: [co('x" autofocus onfocus="alert(1)')] }; const normalized = h.run('normalize(input)'); assert.match(normalized.companies[0].id, /^[a-z0-9-]+$/); assert.equal(h.run('esc(`<img src=x onerror="alert(1)">`)'), '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;'); });
 test('boot retains custom server roles and does not silently write local migration', async () => { const calls = []; const h = harness(async (url, options) => { calls.push([url, options.method]); return jsonResponse(JSON.stringify({ roles: ['custom'], companies: [], revision: 4 })); }); h.storage.set('qiuzhao-tracker-v2', JSON.stringify({ roles: ['legacy'], companies: [co('old')] })); await h.run('connect()'); assert.equal(h.run('state.roles[0]'), 'custom'); assert.equal(h.run('state.companies.length'), 0); assert.equal(h.run('pending.state.companies.length'), 1); assert.equal(calls.length, 1); assert.equal(calls[0][1], undefined); assert.equal(JSON.parse(h.storage.get('qiuzhao-tracker-v2')).companies.length, 1); });

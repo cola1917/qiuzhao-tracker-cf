@@ -62,6 +62,7 @@ GitHub Actions 在 main 推送时依次执行 npm ci、类型检查与回归测�
 浏览器通过已有的 Cloudflare Access 会话访问 `/api/*`，不再发送应用 Bearer 密钥；响应不允许缓存。
 
 - `GET /api/data`：返回 `{ v, revision, roles, companies }`。
+- 默认按记录最近新增或编辑的时间倒序；公司字段 `updatedAt` 为毫秒时间戳，会随云端同步和 JSON 备份保留。连续填写表格时保持行位置，离开表格后重新排序。
 - `PUT /api/data`：提交完整快照及读到的 `revision`，成功返回新版本；旧版本返回 `409`，不修改任何记录。
 - `GET /api/roles`：返回岗位与版本。
 - `POST /api/roles`：提交 `{ name, revision }`。
