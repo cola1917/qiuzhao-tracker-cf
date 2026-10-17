@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const jsonResponse = (body, init = {}) => new Response(body, {...init, headers: {'Content-Type': 'application/json'}});
-const script = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').split("$('add').onclick")[0];
+const script = readFileSync(new URL('../public/workbench.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').split("$('add').onclick")[0];
 function harness(fetch) { const storage = new Map(), nodes = new Map(); const ctx = vm.createContext({ crypto, console, fetch, structuredClone, TextEncoder, setTimeout: () => 1, clearTimeout: () => { }, localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) }, document: { getElementById(id) { if (!nodes.has(id))
             nodes.set(id, { dataset: {}, close() { }, focus() { }, textContent: '', hidden: false }); return nodes.get(id); } }, Date, URL, Blob }); vm.runInContext(script + '\nrender=()=>{};', ctx); return { ctx, storage, run: s => vm.runInContext(s, ctx) }; }
 const co = (id) => ({ id, name: '公司', roles: [], status: '未投', link: '', deadline: '', appliedAt: '', dept: '', note: '' });
@@ -33,7 +33,7 @@ test('inline note, status and role edits advance record order without changing u
  const h = harness();
  h.ctx.handlers = {};
  h.ctx.rowNode = {addEventListener:(event, handler)=>{h.ctx.handlers[event]=handler;}};
- h.run("document.getElementById = () => rowNode; changed=()=>{};state.companies=[{id:'a',note:'old',roles:[],status:'未投',appliedAt:'2026-10-01',updatedAt:1},{id:'b',updatedAt:2}];state.roles=['R']");
+ h.run("document.getElementById = () => rowNode; changed=()=>{};renderTable=()=>{};renderAgenda=()=>{};state.companies=[{id:'a',note:'old',roles:[],status:'未投',appliedAt:'2026-10-01',updatedAt:1},{id:'b',updatedAt:2}];state.roles=['R']");
  const source = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
  h.run(source.slice(source.indexOf("$('rows').addEventListener('input'"),source.indexOf("$('rows').addEventListener('focusout'")));
  h.run("handlers.input({target:{dataset:{field:'note',id:'a'},value:'new'}})");
@@ -64,4 +64,23 @@ test('API uses the Cloudflare session without an application bearer token', asyn
  const h=harness(async(url,options)=>{headers=options.headers;return jsonResponse(JSON.stringify({revision:0,roles:[],companies:[]}));});
  await h.run('connect()');
  assert.equal(headers.Authorization,undefined);
+});
+
+test('bulk input removes blank lines and repeated input while identifying active and archived names',()=>{
+ const h=harness();h.ctx.active=[{...co('a'),name:'已有公司'}];h.ctx.trash=[{...co('b'),name:'已删公司'}];
+ const result=h.run("parseBulkCompanies(' 新公司 \\n\\n已有公司\\n已删公司\\n新公司',active,trash)");
+ assert.equal(result.duplicates,1);assert.equal(result.items.length,3);assert.equal(result.items[1].existing.id,'a');assert.equal(result.items[2].deleted.id,'b');
+});
+
+test('new metadata and local history survive backup normalization without reviving archived roles',()=>{
+ const h=harness();h.ctx.data={roles:[],companies:[{...co('a'),starred:true,interview:{phase:'scheduled',at:'2026-10-22T06:30:00.000Z',location:'线上'}}],trash:[{...co('b'),roles:['旧岗位'],deletedAt:100}],history:[]};
+ assert.equal(h.run('normalize(data).companies[0].interview.at'),'2026-10-22T06:30:00.000Z');assert.equal(h.run('normalize(data).companies[0].starred'),true);assert.equal(h.run('normalize(data).roles.length'),0);assert.equal(h.run('normalize(data).trash[0].roles[0]'),'旧岗位');
+});
+
+test('queued activities remain during an in-flight save and only acknowledged operations are removed',async()=>{
+ let resolve;const h=harness(()=>new Promise(r=>resolve=r));
+ h.run("mode='server';state.companies=[{id:'a',status:'一面'}];state.activity=[];addLocalHistory(state.companies[0],'status','已投');dirty=true;generation=1");
+ const promise=h.run('save()');h.run("state.companies[0].status='二面';addLocalHistory(state.companies[0],'status','一面');generation++;dirty=true");
+ resolve(jsonResponse(JSON.stringify({revision:1})));await promise;
+ assert.equal(h.run('state.activity.length'),1);assert.equal(h.run('state.activity[0].toStatus'),'二面');assert.equal(h.run('dirty'),true);
 });

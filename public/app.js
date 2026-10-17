@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const STATUSES = ['未投', '已投', '测评', '笔试', '一面', '二面', '三面', 'OC', '已挂'];
 const LIVE = ['测评', '笔试', '一面', '二面', '三面'];
 const DEFAULT_ROLES = ['具身智能算法', '机器人算法', 'VLA / 多模态算法', '机器人仿真', 'Sim2Real', '感知算法', 'SLAM / 定位', '运动规划', '运动控制', '强化学习', '大模型算法', 'AI Infra', '端侧部署', '机械工程师', '结构工程师', '软件开发'];
-const emptyState = () => ({ v: 2, revision: 0, roles: [...DEFAULT_ROLES], companies: [] });
+const emptyState = () => ({ v: 3, revision: 0, roles: [...DEFAULT_ROLES], companies: [], trash: [], history: [], historyEdits: [], activity: [] });
 let state = emptyState(), mode = 'loading', dirty = false, saving = false, generation = 0, timer, blocked = false, pending = null;
 let view = 'all';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -29,9 +29,10 @@ function notice(message, error = false) { $('notice').textContent = message; $('
 function normalize(raw) {
     if (!raw || !Array.isArray(raw.companies) || raw.companies.length > 2000)
         throw new Error('备份缺少有效的 companies 列表，或记录超过 2000 条');
-    if (new TextEncoder().encode(JSON.stringify(raw)).length > 1000000)
+    if (new TextEncoder().encode(JSON.stringify(raw)).length > 10000000)
         throw new Error('数据量超过上限，请精简备注后重试');
-    const result = { v: 2, revision: Number.isSafeInteger(raw.revision) && raw.revision >= 0 ? raw.revision : 0, roles: [], companies: [] };
+    if(raw.trash!==undefined && (!Array.isArray(raw.trash)||raw.trash.length>2000))throw new Error('回收站数据无效');
+    const result = { v: 3, revision: Number.isSafeInteger(raw.revision) && raw.revision >= 0 ? raw.revision : 0, roles: [], companies: [], trash: [] };
     const roles = Array.isArray(raw.roles) ? raw.roles : DEFAULT_ROLES;
     for (const r of roles) {
         if (typeof r !== 'string' || !r.trim() || r.length > 100)
@@ -40,7 +41,7 @@ function normalize(raw) {
             result.roles.push(r.trim());
     }
     const ids = new Set();
-    for (const original of raw.companies) {
+    for (const original of [...raw.companies,...(raw.trash||[])]) {
         if (!original || typeof original !== 'object' || Array.isArray(original))
             throw new Error('公司记录格式无效');
         const co = {};
@@ -65,13 +66,19 @@ function normalize(raw) {
             const role = r.trim();
             if (!co.roles.includes(role))
                 co.roles.push(role);
-            if (!result.roles.includes(role))
+            if (raw.companies.includes(original) && !result.roles.includes(role))
                 result.roles.push(role);
         }
-        result.companies.push(co);
+        const deleted = !raw.companies.includes(original);
+        normalizeCompanyExtras(co,original,deleted);
+        (deleted?result.trash:result.companies).push(co);
     }
     if (result.roles.length > 200)
         throw new Error('岗位不能超过 200 个');
+    result.history=normalizeHistory(raw.history,new Set([...result.companies,...result.trash].map(c=>c.id)));
+    result.activity=normalizeHistory(raw.activity,new Set([...result.companies,...result.trash].map(c=>c.id)));
+    result.historyEdits=Array.isArray(raw.historyEdits)?raw.historyEdits.filter(e=>e&&/^[a-zA-Z0-9_-]{1,100}$/.test(e.id)&&Number.isSafeInteger(e.at)&&e.at>=0):[];
+    if(raw.restoreHistory)result.restoreHistory=true;
     return result;
 }
 async function api(path, options = {}) {
@@ -98,6 +105,7 @@ async function save() {
     if (!dirty || saving || blocked || mode === 'loading')
         return;
     if (mode === 'local') {
+        state.historyEdits=[];
         dirty = false;
         if (cache())
             flag('ok', '已保存到此浏览器');
@@ -109,15 +117,21 @@ async function save() {
     }
     saving = true;
     const version = generation;
-    const snapshot = copy(state);
+    const snapshot = buildSnapshot();
+    const restoring = !!state.restoreHistory;
+    if(restoring)snapshot.history=copy(state.history||[]);
     flag('saving', '正在同步…');
     try {
-        const result = await api('data', { method: 'PUT', body: JSON.stringify(snapshot) });
+        const result = await api(restoring?'backup':'data', { method: 'PUT', body: JSON.stringify(snapshot) });
         state.revision = result.revision;
+        if(restoring)delete state.restoreHistory;
+        state.historyEdits=(state.historyEdits||[]).filter(e=>!snapshot.historyEdits?.some(sent=>sent.id===e.id&&sent.at===e.at));
+        state.activity=(state.activity||[]).filter(e=>!snapshot.activity?.some(sent=>sent.id===e.id));
         if (generation === version)
             dirty = false;
         cache();
         flag('ok', dirty ? '继续同步新修改…' : '已同步到云端');
+        if(!dirty){historyLoaded.clear();if(openedCompany)loadHistory(openedCompany,true);}
     }
     catch (error) {
         dirty = true;
@@ -142,6 +156,7 @@ async function save() {
 async function connect() {
     const data = normalize(await api('data'));
     state = data;
+    historyLoaded.clear();
     mode = 'server';
     dirty = false;
     blocked = false;
@@ -185,8 +200,9 @@ function renderStats() {
     const upcoming = state.companies.filter(co => co.status === '未投' && co.deadline && days(co.deadline) >= 0 && days(co.deadline) <= 7).sort((a, b) => a.deadline.localeCompare(b.deadline));
     $('upcoming').innerHTML = upcoming.length ? upcoming.slice(0, 3).map(co => `<div class="upcoming-item"><i></i><button data-edit="${esc(co.id)}">${esc(co.name || '未命名公司')}</button><small>${days(co.deadline) === 0 ? '今天截止' : days(co.deadline) + ' 天后截止'}</small></div>`).join('') + (upcoming.length > 3 ? `<p class="quiet">另有 ${upcoming.length - 3} 家即将截止，筛选「待投清单」查看</p>` : '') : '<p class="quiet">暂无即将截止的待投机会，按自己的节奏前进。</p>';
 }
-function render() { renderStats(); renderTable(); }
+function render() { renderStats(); renderTable(); renderAgenda(); }
 function touchCompany(co) {
+    tableSortPending=true;
     co.updatedAt = Math.max(Date.now(), ...state.companies.map(c => (c.updatedAt || 0) + 1));
 }
 function sortCompanies(list, sort) {
@@ -204,13 +220,14 @@ function sortCompanies(list, sort) {
     return result;
 }
 function renderTable() {
+    tableSortPending=false;
     const query = $('q').value.trim().toLowerCase(), status = $('statusfilter').value;
-    const list = sortCompanies(state.companies.filter(co => (view === 'all' || view === 'todo' && co.status === '未投' || view === 'live' && LIVE.includes(co.status) || view === 'oc' && co.status === 'OC') && (!status || co.status === status) && (!query || [co.name, co.dept, co.note, ...co.roles].join(' ').toLowerCase().includes(query))), $('sort').value);
+    const list = sortCompanies(state.companies.filter(co => (!$('starfilter').checked||co.starred) && (view === 'all' || view === 'todo' && co.status === '未投' || view === 'live' && LIVE.includes(co.status) || view === 'oc' && co.status === 'OC') && (!status || co.status === status) && (!query || [co.name, co.dept, co.note, ...co.roles].join(' ').toLowerCase().includes(query))), $('sort').value);
     $('view-title').innerHTML = ({ all: '全部投递', todo: '待投清单', live: '进行中', oc: '收获 Offer' }[view]) + ` <span>${list.length}</span>`;
     $('rows').innerHTML = list.map(co => {
         const remaining = days(co.deadline);
         const input = (field, placeholder = '', type = 'text') => `<input class="inline-input ${field === 'name' ? 'company-name' : ''}" data-field="${field}" data-id="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} ${({ name: '公司名称', link: '投递链接', dept: '部门', deadline: '截止日期', appliedAt: '投递时间', note: '备注' })[field]}" type="${type}" value="${esc(co[field])}" placeholder="${placeholder}" maxlength="${field === 'note' ? 5000 : 2000}">`;
-        return `<tr data-row="${esc(co.id)}"><td class="company-cell">${input('name', '公司名称…')}${input('link', '投递链接 / 来源')}</td><td class="role-cell"><details class="role-select" data-role-menu="${esc(co.id)}"><summary>${roleSummary(co)}</summary><div class="role-menu">${state.roles.map((r, i) => `<div class="role-choice"><label><input type="checkbox" data-company-role="${esc(co.id)}" data-role-index="${i}" ${co.roles.includes(r) ? 'checked' : ''}>${esc(r)}</label><button type="button" data-delete-role="${i}" aria-label="删除岗位 ${esc(r)}">×</button></div>`).join('')}<div class="role-add"><input class="new-role" aria-label="新岗位" maxlength="100" placeholder="添加岗位…"><button type="button" data-add-role="${esc(co.id)}">＋</button></div></div></details>${input('dept', '部门 / 团队')}</td><td><select class="inline-status ${statusClass(co.status)}" data-status="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} 投递状态">${STATUSES.map(s => `<option ${co.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></td><td class="date">${input('deadline', '', 'date')}<span class="due ${remaining < 0 ? 'late' : ''}" data-due>${dueText(co.deadline)}</span></td><td class="date">${input('appliedAt', '', 'date')}</td><td>${input('note', '内推码、面试安排…')}</td><td><button class="delete-row" data-delete="${esc(co.id)}" aria-label="删除 ${esc(co.name || '此记录')}">×</button></td></tr>`;
+        return `<tr data-row="${esc(co.id)}" class="${co.starred ? 'starred-row' : ''}"><td class="company-cell"><div class="company-with-star"><button type="button" class="star-button" data-star="${esc(co.id)}" aria-label="${co.starred ? '取消' : '添加'}星标 ${esc(co.name)}" aria-pressed="${!!co.starred}">${co.starred ? '★' : '☆'}</button><div>${input('name', '公司名称…')}${input('link', '投递链接 / 来源')}</div></div></td><td class="role-cell"><details class="role-select" data-role-menu="${esc(co.id)}"><summary>${roleSummary(co)}</summary><div class="role-menu">${state.roles.map((r, i) => `<div class="role-choice"><label><input type="checkbox" data-company-role="${esc(co.id)}" data-role-index="${i}" ${co.roles.includes(r) ? 'checked' : ''}>${esc(r)}</label><button type="button" data-delete-role="${i}" aria-label="删除岗位 ${esc(r)}">×</button></div>`).join('')}<div class="role-add"><input class="new-role" aria-label="新岗位" maxlength="100" placeholder="添加岗位…"><button type="button" data-add-role="${esc(co.id)}">＋</button></div></div></details>${input('dept', '部门 / 团队')}</td><td><select class="inline-status ${statusClass(co.status)}" data-status="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} 投递状态">${STATUSES.map(s => `<option ${co.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select><div class="phase-label">${phaseName(co)}</div></td><td class="meeting-cell">${renderMeetingCell(co)}</td><td class="date"><label class="date-label">截止</label>${input('deadline', '', 'date')}<span class="due ${remaining < 0 ? 'late' : ''}" data-due>${dueText(co.deadline)}</span><label class="date-label">投递</label>${input('appliedAt', '', 'date')}</td><td>${input('note', '内推码、面试安排…')}</td><td><div class="row-actions"><button type="button" class="history-button" data-history="${esc(co.id)}" aria-expanded="${openedCompany===co.id}">${openedCompany===co.id ? '收起 ⌃' : '历史 ⌄'}</button><button class="delete-row" data-delete="${esc(co.id)}" aria-label="删除 ${esc(co.name || '此记录')}">×</button></div></td></tr>` + (openedCompany===co.id ? renderCompanyDetails(co) : '');
     }).join('');
     $('empty').hidden = !!list.length;
     $('rows').closest('table').hidden = !list.length;
@@ -228,13 +245,15 @@ function addCompany() {
         notice('最多保存 2000 条记录。', true);
         return;
     }
-    const co = { id: crypto.randomUUID(), name: '', link: '', deadline: '', appliedAt: '', roles: [], dept: '', status: '未投', note: '' };
+    const co = newCompany();
+    addLocalHistory(co,'created');
     touchCompany(co);
     state.companies.unshift(co);
     view = 'all';
     $('q').value = '';
     $('statusfilter').value = '';
     $('sort').value = 'added';
+    $('starfilter').checked=false;
     document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'all'));
     changed();
     const input = document.querySelector('[data-row="' + co.id + '"] [data-field="name"]');
@@ -242,7 +261,20 @@ function addCompany() {
     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function download(name, text, mime = 'application/json') { const url = URL.createObjectURL(new Blob([text], { type: mime })); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
-function backup(data = state) { download('投递备份-' + today() + '.json', JSON.stringify(data, null, 2)); }
+async function backup(data = state) {
+    try {
+        let result=copy(data);
+        if(mode==='server'){
+            const remote=await api('backup');
+            if(data===state && !dirty){download('投递备份-'+today()+'.json',JSON.stringify(remote,null,2));return;}
+            const ids=new Set([...result.companies,...(result.trash||[])].map(c=>c.id));
+            const events=new Map((remote.history||[]).filter(h=>ids.has(h.companyId)).map(h=>[h.id,h]));
+            for(const h of result.history||[])if(ids.has(h.companyId))events.set(h.id,h);
+            result.history=[...events.values()];
+        }
+        download('投递备份-'+today()+'.json',JSON.stringify(result,null,2));
+    }catch(error){notice('完整备份失败：'+error.message+'。已导出本机现有数据，未载入的云端历史可能不在其中。',true);download('投递本机备份-'+today()+'.json',JSON.stringify(data,null,2));}
+}
 $('add').onclick = $('empty-add').onclick = addCompany;
 document.addEventListener('click', e => {
     const nav = e.target.closest('[data-view]');
@@ -265,10 +297,7 @@ document.addEventListener('click', e => {
     const del = e.target.closest('[data-delete]');
     if (del) {
         const co = state.companies.find(c => c.id === del.dataset.delete);
-        if (co && confirm('删除「' + (co.name || '此记录') + '」？')) {
-            state.companies = state.companies.filter(c => c.id !== co.id);
-            changed();
-        }
+        if (co) moveToTrash(co);
     }
     const add = e.target.closest('[data-add-role]');
     if (add) {
@@ -326,7 +355,11 @@ $('rows').addEventListener('change', e => {
         const co = state.companies.find(c => c.id === e.target.dataset.status);
         if (co.status === e.target.value)
             return;
+        const previousStatus=co.status;
         co.status = e.target.value;
+        addLocalHistory(co,'status',previousStatus);
+        if(co.interview?.phase==='scheduled')addLocalHistory(co,'cancel','',JSON.stringify(co.interview));
+        co.interview=emptyInterview();
         touchCompany(co);
         e.target.className = 'inline-status ' + statusClass(co.status);
         if (co.status !== '未投' && !co.appliedAt) {
@@ -334,6 +367,9 @@ $('rows').addEventListener('change', e => {
             e.target.closest('tr').querySelector('[data-field="appliedAt"]').value = co.appliedAt;
         }
         changed(false);
+        openedCompany=co.id;
+        renderTable();renderAgenda();
+        if(mode==='server')loadHistory(co.id);
     }
     if (e.target.dataset.companyRole) {
         const co = state.companies.find(c => c.id === e.target.dataset.companyRole), role = state.roles[Number(e.target.dataset.roleIndex)];
@@ -348,7 +384,7 @@ $('rows').addEventListener('change', e => {
 $('rows').addEventListener('focusout', () => {
     // Keep the row stable while filling its fields; reorder after leaving the table.
     setTimeout(() => {
-        if ($('sort').value === 'added' && !$('rows').contains(document.activeElement))
+        if (tableSortPending && $('sort').value === 'added' && !$('rows').contains(document.activeElement))
             renderTable();
     }, 0);
 });
@@ -370,6 +406,11 @@ $('fileinput').onchange = async (e) => { const file = e.target.files[0]; e.targe
     if (!confirm(`用备份中的 ${incoming.companies.length} 条记录替换当前 ${state.companies.length} 条记录？`))
         return;
     incoming.revision = state.revision;
+    incoming.activity=[];
+    incoming.restoreHistory=Array.isArray(JSON.parse(await file.text()).history);
+    const incomingIds=new Set([...incoming.companies,...incoming.trash].map(c=>c.id));
+    incoming.trash.push(...[...state.companies,...(state.trash||[])].filter(c=>!incomingIds.has(c.id)).map(c=>({...c,deletedAt:c.deletedAt||Date.now()})));
+    if(incoming.trash.length>2000)throw new Error('恢复后回收站会超过 2000 条，当前数据未更改');
     state = incoming;
     notice('已恢复备份，正在保存。');
     changed();
@@ -437,6 +478,7 @@ window.addEventListener('online', () => { if (dirty && !blocked)
     save(); });
 // Remove the retired application password from this tab; Cloudflare owns login.
 try { sessionStorage.removeItem('qiuzhao-token'); } catch {}
+initWorkbenchFeatures();
 render();
 flag('saving', '正在加载…');
 connect().catch(error => {

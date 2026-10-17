@@ -10,6 +10,11 @@ Cloudflare Workers + Hono + D1，原生 HTML / CSS / JavaScript，无前端构�
 - 公司与岗位在同一事务中保存，删除与恢复备份真正替换记录。
 - 版本校验防止多端覆盖；断网暂存、重试、未同步修改恢复。
 - JSON 备份恢复、CSV 导出（含公式注入防护）。
+- 独立的面试安排与阶段进展：先进入下一轮，再补充日期、时间和会议地点；支持改期、标记完成和待反馈。
+- 行内状态时间线、实际反馈时间修正；快速连续操作和断网操作会排队保存，不丢失中间进展。
+- 星标整行高亮与筛选；星标不改变默认记录排序。
+- 批量粘贴公司名称，一次最多 100 家，检查已有记录和回收站同名记录，保持输入顺序。
+- 删除移入回收站，支持立即撤销，恢复时保留投递信息、星标和历史。
 
 ## 本地开发
 
@@ -49,7 +54,7 @@ npm run build   # Wrangler dry-run，只打包不部署
 
 1. 在 `wrangler.toml` 配置 D1 的名称和 ID。
 2. 升级旧版前，导出 JSON 备份。
-3. 手动执行 `npm run db:migrate:remote`。新增迁移 `0003_sync.sql` 添加排序位置和同步版本元数据，保留已有记录。
+3. 手动执行 `npm run db:migrate:remote`。`0003_sync.sql` 添加排序与同步元数据；`0004_workbench.sql` 添加星标、回收站、面试安排和独立历史表，保留已有记录。历史启用时仅以现有状态建立起点，不推测之前的反馈或面试日期。
 4. 沿用已有的 Cloudflare Access 策略，覆盖站点及 `/api/*` 路由。
 5. 执行 `npm run deploy`；通过 Cloudflare 验证后直接进入工作台。
 
@@ -64,11 +69,15 @@ GitHub Actions 在 main 推送时依次执行 npm ci、类型检查与回归测�
 - `GET /api/data`：返回 `{ v, revision, roles, companies }`。
 - 默认按记录最近新增或编辑的时间倒序；公司字段 `updatedAt` 为毫秒时间戳，会随云端同步和 JSON 备份保留。连续填写表格时保持行位置，离开表格后重新排序。
 - `PUT /api/data`：提交完整快照及读到的 `revision`，成功返回新版本；旧版本返回 `409`，不修改任何记录。
+- 快照 v3 包含 `companies` 和 `trash`；删除只移动至回收站，旧版快照省略的记录也会保留。`starred` 为星标，`interview` 包含 `phase`（pending / scheduled / feedback）、UTC ISO 格式的 `at` 和 `location`。页面按浏览器本地时区展示和填写。
+- `GET /api/history/:id`：按需加载单条投递的历史，普通自动保存无需传输全部历史。
+- `activity`：待同步的进展操作，保留每次操作时间；与数据在同一事务内保存，成功后客户端只移除本次确认的操作。`historyEdits` 仅修正阶段事件的实际反馈时间，保留系统记录时间。
+- `GET /api/backup`：导出完整 v3 数据，包含回收站与全部历史。`PUT /api/backup` 用于显式恢复完整备份。旧版 JSON 仍可恢复；被替换的现有记录保留在回收站。
 - `GET /api/roles`：返回岗位与版本。
 - `POST /api/roles`：提交 `{ name, revision }`。
 - `DELETE /api/roles/:name`：携带 `If-Match: <revision>`，同时移除公司岗位关联。
 
-数据最多 2000 条公司、200 个岗位，序列化快照最多 1 MB（UTF-8）。事务行为参考 [Cloudflare D1 batch 文档](https://developers.cloudflare.com/d1/worker-api/d1-database/)。静态资源通过 [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) 提供。
+数据最多 2000 条正常投递、2000 条回收站记录、200 个岗位，常规快照最多 1 MB（UTF-8）；完整备份中的历史最多 20000 条、8 MB。事务行为参考 [Cloudflare D1 batch 文档](https://developers.cloudflare.com/d1/worker-api/d1-database/)。静态资源通过 [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) 提供。
 
 ## 目录
 

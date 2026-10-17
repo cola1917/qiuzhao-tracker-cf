@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 export function database() {
     const db = new DatabaseSync(':memory:');
-    for (const name of ['0001_init.sql', '0003_sync.sql'])
+    for (const name of ['0001_init.sql', '0003_sync.sql', '0004_workbench.sql'])
         db.exec(readFileSync(new URL('../migrations/' + name, import.meta.url), 'utf8'));
     const prepare = (sql, values = []) => ({ bind: (...args) => prepare(sql, args), sql, values });
     return { db, prepare, async batch(statements) { db.exec('BEGIN'); try {
