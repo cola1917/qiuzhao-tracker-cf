@@ -42,7 +42,19 @@ function historyTitle(h) {
 function historyMarkup(id) {
     const list=(state.history || []).filter(h=>h.companyId===id).sort((a,b)=>b.at-a.at || b.recordedAt-a.recordedAt);
     if(!list.length) return `<p class="quiet">${mode==='server' ? (historyLoaded.has(id)?'暂无历史，保存变更后将自动记录。':'正在载入历史…') : '从下一次进度变更开始记录。'}</p>`;
-    return `<ol class="history-list">${list.map(h=>`<li><span>${esc(historyTitle(h))}</span><div class="history-meta">${esc(formatTime(h.at))} · ${['status','created','baseline'].includes(h.kind)?'阶段进展':'面试安排'}${['status','created','baseline'].includes(h.kind)?` <button type="button" class="text-btn" data-correct="${esc(h.id)}">修正时间</button>`:''}</div></li>`).join('')}</ol>`;
+    return `<ol class="history-list">${list.map(h=>`<li><div class="history-title">${historyTitleMarkup(h)}</div><div class="history-meta">${esc(formatTime(h.at))} · ${['status','created','baseline'].includes(h.kind)?'阶段进展':'面试安排'}${['status','created','baseline'].includes(h.kind)?` <button type="button" class="text-btn" data-correct="${esc(h.id)}">修正时间</button>`:''}</div></li>`).join('')}</ol>`;
+}
+function historyTitleMarkup(h) {
+    const stage=(value,current=false)=>`<strong class="history-stage${current?' history-stage-current':''}">${esc(value)}</strong>`;
+    if(h.kind==='status')return `${stage(h.fromStatus)}<span class="history-arrow" aria-label="变为">→</span>${stage(h.toStatus,true)}`;
+    if(h.kind==='baseline')return `${stage(h.toStatus,true)}<span class="history-context">历史记录启用时的状态</span>`;
+    if(h.kind==='created')return `${stage(h.toStatus,true)}<span class="history-context">创建记录</span>`;
+    if(h.kind==='complete')return `${stage(h.toStatus)}<span class="history-context">已完成 · 等待反馈</span>`;
+    if(h.kind==='schedule'){
+        let info;try{info=JSON.parse(h.detail);}catch{info={};}
+        return `${stage(h.toStatus,true)}<span>${info.previousAt?'改期：'+esc(formatTime(info.previousAt))+' → ':'安排：'}${esc(formatTime(info.at))}</span>`;
+    }
+    return esc(historyTitle(h));
 }
 async function loadHistory(id,force=false) {
     if(mode!=='server' || historyLoading.has(id) || (!force && historyLoaded.has(id))) return;

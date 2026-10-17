@@ -33,12 +33,17 @@ td.company-cell{min-width:195px;width:auto}td.role-cell{min-width:170px;width:19
 .details-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:32px;padding:24px 28px 28px 38px}
 .details-grid h3{font-size:15px;font-weight:600;margin:0 0 14px}
 .history-list{list-style:none;margin:0;padding:0}
-.history-list li{position:relative;border-left:1px solid #cbd0c2;padding:0 0 19px 18px;margin-left:4px;font-size:13px}
+.history-list li{position:relative;border-left:1px solid #cbd0c2;padding:0 0 24px 20px;margin-left:4px;font-size:15px;color:#29362e}
 .history-list li:last-child{border-color:transparent;padding-bottom:0}
-.history-list li:before{content:'';position:absolute;width:7px;height:7px;background:#9da58f;border-radius:50%;left:-4px;top:6px}
+.history-list li:before{content:'';position:absolute;width:7px;height:7px;background:#9da58f;border-radius:50%;left:-4px;top:11px}
 .history-list li:first-child:before{background:var(--green)}
-.history-meta{font-size:12px;color:#687060;margin-top:4px}
-.history-meta .text-btn{display:inline;padding:0 0 0 6px;font-size:12px;color:var(--green)}
+.history-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px;line-height:1.75;font-weight:500;color:#29362e}
+.history-stage{display:inline-flex;align-items:center;justify-content:center;min-width:48px;padding:2px 9px;border:1px solid #cbd1c2;border-radius:4px;background:#fffefa;color:#29362e;font-size:15px;line-height:1.5;font-weight:650}
+.history-stage-current{background:#f6e6dc;border-color:#dfb9a7;color:#8d341d}
+.history-arrow{font-size:17px;color:#52604c}
+.history-context{font-size:14px;font-weight:500;color:#44513e}
+.history-meta{font-size:13px;line-height:1.7;color:#586251;margin-top:7px}
+.history-meta .text-btn{display:inline;padding:0 0 0 8px;font-size:13px;color:#984027}
 .meeting-form{padding-left:28px;border-left:1px solid var(--line)}
 .meeting-phase{font-size:13px;color:var(--green);margin-bottom:12px}
 .meeting-fields{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
