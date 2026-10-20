@@ -21,6 +21,26 @@ test('meeting time offers only whole hours and preserves an existing precise app
  assert.doesNotMatch(details,/type="time"/);
 });
 
+test('legacy stage baseline and appointment events never appear as duplicate stage transitions', () => {
+ const h=harness();
+ h.ctx.events=[
+  {id:'baseline',companyId:'a',kind:'baseline',toStatus:'一面',detail:'',at:100,recordedAt:100},
+  {id:'schedule',companyId:'a',kind:'schedule',toStatus:'一面',detail:JSON.stringify({at:'2026-10-10T08:00:00.000Z'}),at:200,recordedAt:200},
+  {id:'cancel',companyId:'a',kind:'cancel',toStatus:'一面',detail:JSON.stringify({at:'2026-10-10T08:00:00.000Z'}),at:300,recordedAt:300}
+ ];
+ h.run('state.history=events');
+ const markup=h.run("historyMarkup('a')");
+ assert.match(markup,/历史起点：当时处于一面/);
+ assert.match(markup,/安排一面时间：/);
+ assert.match(markup,/取消一面安排 · 原定/);
+ assert.match(markup,/历史启用时间：/);
+ assert.match(markup,/记录时间：/);
+ assert.doesNotMatch(markup,/history-stage/);
+ assert.equal((markup.match(/<li>/g)||[]).length,3);
+ assert.match(h.run("historyTitleMarkup({kind:'status',fromStatus:'一面',toStatus:'二面'})"), /history-stage/);
+ assert.match(h.run("historyTitleMarkup({kind:'baseline',toStatus:'<img src=x>',detail:''})"), /&lt;img src=x&gt;/);
+});
+
 test('application dates sort newest first, with blanks last and stable ties, without changing saved order', () => {
  const h = harness();
  h.ctx.records = [co('blank'), {...co('older'), appliedAt:'2026-09-30'}, {...co('newer'), appliedAt:'2026-10-09'}, {...co('same-day'), appliedAt:'2026-10-09'}];
