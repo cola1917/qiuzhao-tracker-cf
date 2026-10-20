@@ -8,6 +8,19 @@ function harness(fetch) { const storage = new Map(), nodes = new Map(); const ct
             nodes.set(id, { dataset: {}, close() { }, focus() { }, textContent: '', hidden: false }); return nodes.get(id); } }, Date, URL, Blob }); vm.runInContext(script + '\nrender=()=>{};', ctx); return { ctx, storage, run: s => vm.runInContext(s, ctx) }; }
 const co = (id) => ({ id, name: '公司', roles: [], status: '未投', link: '', deadline: '', appliedAt: '', dept: '', note: '' });
 
+test('meeting time offers only whole hours and preserves an existing precise appointment', () => {
+ const h=harness();
+ const empty=h.run("renderMeetingTime('a')");
+ const values=[...empty.matchAll(/<option value="([^"]*)"/g)].map(match=>match[1]);
+ assert.deepEqual(values,['',...Array.from({length:24},(_,hour)=>String(hour).padStart(2,'0')+':00')]);
+ assert.match(empty, /value="" disabled selected/);
+ assert.match(h.run("renderMeetingTime('a','14:00')"), /value="14:00" selected/);
+ assert.match(h.run("renderMeetingTime('a','14:35')"), /value="14:35" selected hidden/);
+ const details=h.run("renderCompanyDetails({id:'a',status:'一面',interview:emptyInterview()})");
+ assert.match(details,/type="date"/);
+ assert.doesNotMatch(details,/type="time"/);
+});
+
 test('application dates sort newest first, with blanks last and stable ties, without changing saved order', () => {
  const h = harness();
  h.ctx.records = [co('blank'), {...co('older'), appliedAt:'2026-09-30'}, {...co('newer'), appliedAt:'2026-10-09'}, {...co('same-day'), appliedAt:'2026-10-09'}];

@@ -48,7 +48,7 @@ td.company-cell{min-width:195px;width:auto}td.role-cell{min-width:170px;width:19
 .meeting-phase{font-size:13px;color:#202820;margin-bottom:12px}
 .meeting-fields{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
 .meeting-fields label{font-size:12px;color:#687060;min-width:0}
-.meeting-fields input,.workbench-dialog>input:not([type=hidden]){display:block;width:100%;min-width:0;background:var(--surface);border:1px solid #ccd1c3;border-radius:4px;padding:9px;margin-top:5px;color:var(--ink);font-size:14px}
+.meeting-fields input,.meeting-fields select,.workbench-dialog>input:not([type=hidden]){display:block;width:100%;min-width:0;background:var(--surface);border:1px solid #ccd1c3;border-radius:4px;padding:9px;margin-top:5px;color:var(--ink);font-size:14px}
 .meeting-location{grid-column:1/-1}
 .meeting-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:15px}
 .meeting-help{color:#687060;font-size:12px;margin:12px 0 0}
