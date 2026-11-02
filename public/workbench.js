@@ -1,5 +1,5 @@
 'use strict';
-let openedCompany = null, lastDeletedCompany = null, historyLoading = new Set(), historyLoaded = new Set(), tableSortPending = false;
+let openedCompany = null, lastDeletedCompany = null, historyLoading = new Set(), historyLoaded = new Set();
 const emptyInterview = () => ({ phase: 'pending', at: '', location: '' });
 const isInterview = status => ['一面', '二面', '三面'].includes(status);
 const phaseName = co => !isInterview(co.status) ? '' : ({ pending: '待安排', scheduled: '已安排', feedback: '待反馈' }[co.interview?.phase || 'pending']);
@@ -43,7 +43,7 @@ function historyMarkup(id) {
     const list=(state.history || []).filter(h=>h.companyId===id).sort((a,b)=>b.at-a.at || b.recordedAt-a.recordedAt);
     if(!list.length) return `<p class="quiet">${mode==='server' ? (historyLoaded.has(id)?'暂无历史，保存变更后将自动记录。':'正在载入历史…') : '从下一次进度变更开始记录。'}</p>`;
     const category={baseline:'历史起点',created:'创建记录',status:'阶段变更',restore:'恢复记录'};
-    return `<ol class="history-list">${list.map(h=>`<li><div class="history-title">${historyTitleMarkup(h)}</div><div class="history-meta">${h.kind==='baseline'?'历史启用时间':'记录时间'}：${esc(formatTime(h.at))} · ${category[h.kind]||'面试安排'}${['status','created','baseline'].includes(h.kind)?` <button type="button" class="text-btn" data-correct="${esc(h.id)}">修正时间</button>`:''}</div></li>`).join('')}</ol>`;
+    return `<ol class="history-list">${list.map(h=>`<li><div class="history-title">${historyTitleMarkup(h)}</div>${noteAction(h)}<div class="history-meta">${h.kind==='baseline'?'历史启用时间':'记录时间'}：${esc(formatTime(h.at))} · ${category[h.kind]||'面试安排'}${['status','created','baseline'].includes(h.kind)?` <button type="button" class="text-btn" data-correct="${esc(h.id)}">修正时间</button>`:''}</div></li>`).join('')}</ol>`;
 }
 function historyTitleMarkup(h) {
     const stage=(value,current=false)=>`<strong class="history-stage${current?' history-stage-current':''}">${esc(value)}</strong>`;
@@ -86,7 +86,7 @@ function renderMeetingTime(id, value='') {
 function renderCompanyDetails(co) {
     const m=co.interview||emptyInterview(), local=timeInput(m.at), id=esc(co.id);
     const form=isInterview(co.status)?`<div class="meeting-phase">${esc(co.status)} · ${phaseName(co)}</div><div class="meeting-fields"><label>面试日期<input type="date" data-meeting-date="${id}" value="${local.slice(0,10)}" required></label><label>时间${renderMeetingTime(co.id,local.slice(11))}</label><label class="meeting-location">会议链接 / 地点<input data-meeting-location="${id}" value="${esc(m.location)}" placeholder="稍后补充也可以" maxlength="2000"></label></div><div class="meeting-actions"><button type="button" class="btn primary" data-save-meeting="${id}">${m.phase==='scheduled'?'保存安排':'确认面试时间'}</button>${m.phase==='scheduled'?`<button type="button" class="btn" data-complete-meeting="${id}">标记已完成</button>`:''}${m.at?`<button type="button" class="text-btn" data-cancel-meeting="${id}">取消安排</button>`:''}</div><p class="meeting-help">先记录阶段进展，面试时间可以稍后补充。</p>`:'<p class="quiet">进入面试阶段后，可在此补充面试时间。</p>';
-    return `<tr class="company-details"><td colspan="7"><div class="details-grid"><section><div class="section-title"><h3>进展时间线</h3><span>最新在前</span></div><div data-history-list="${id}">${historyMarkup(co.id)}</div></section><section class="meeting-form"><h3>面试安排</h3>${form}</section></div></td></tr>`;
+    return `<tr class="company-details"><td colspan="7"><div class="details-grid"><section><div class="section-title"><h3>进展时间线</h3><span>最新在前</span></div><div data-history-list="${id}">${historyMarkup(co.id)}</div></section><section class="meeting-form"><h3>面试安排</h3>${form}${renderNoteEditor(co)}</section></div></td></tr>`;
 }
 function renderAgenda() {
     const node=$('agenda');if(!node)return;

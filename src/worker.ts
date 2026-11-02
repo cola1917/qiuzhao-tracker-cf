@@ -7,7 +7,8 @@ export type Company = {
     starred?: boolean; deletedAt?: number; interview?: Interview;
 };
 type History = { id: string; companyId: string; kind: string; fromStatus: string; toStatus: string; detail: string; at: number; recordedAt: number };
-type Snapshot = { v: number; revision: number; roles: string[]; companies: Company[]; trash?: Company[]; history?: History[]; activity?: History[]; historyEdits?: { id: string; at: number }[] };
+type InterviewNote = { id: string; companyId: string; eventId: string; stage: string; meetingAt: string; title: string; body: string; category: string; updatedAt: number };
+type Snapshot = { v: number; revision: number; roles: string[]; companies: Company[]; notes?: InterviewNote[]; trash?: Company[]; history?: History[]; activity?: History[]; historyEdits?: { id: string; at: number }[] };
 const statuses = ['未投', '已投', '测评', '笔试', '一面', '二面', '三面', 'OC', '已挂'];
 const fields = ['id', 'name', 'link', 'deadline', 'dept', 'appliedAt', 'status', 'note'] as const;
 const validId = (id: unknown): id is string => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id);
@@ -17,7 +18,7 @@ export function validateSnapshot(input: unknown): Snapshot {
     const data = input as Snapshot;
     if (!data || !Array.isArray(data.companies) || data.companies.length > 2000 || !Array.isArray(data.roles) || data.roles.length > 200 || !Number.isSafeInteger(data.revision) || data.revision < 0 || (data.trash !== undefined && (!Array.isArray(data.trash) || data.trash.length > 2000)))
         throw new Error('备份结构或版本无效');
-    if (new TextEncoder().encode(JSON.stringify({ ...data, history: undefined })).length > 1000000)
+    if (new TextEncoder().encode(JSON.stringify({ ...data, history: undefined, notes: undefined })).length > 1000000)
         throw new Error('数据量超过上限，请精简备注后重试');
     if (data.roles.some(r => typeof r !== 'string' || !r.trim() || r.length > 100) || new Set(data.roles).size !== data.roles.length)
         throw new Error('岗位名称无效或重复');
@@ -35,6 +36,14 @@ export function validateSnapshot(input: unknown): Snapshot {
         const meeting = co.interview;
         if (meeting !== undefined && (!meeting || !['pending', 'scheduled', 'feedback'].includes(meeting.phase) || typeof meeting.at !== 'string' || typeof meeting.location !== 'string' || meeting.location.length > 2000 || (meeting.phase !== 'pending' && (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(meeting.at) || !Number.isFinite(Date.parse(meeting.at)) || new Date(meeting.at).toISOString() !== meeting.at)) || (meeting.phase === 'pending' && meeting.at !== '')))
             throw new Error('面试安排无效');
+    }
+    if (data.notes !== undefined) {
+        if (!Array.isArray(data.notes) || data.notes.length > 1000 || new TextEncoder().encode(JSON.stringify(data.notes)).length > 1000000) throw new Error('面试笔记超过上限');
+        const noteIds = new Set<string>();
+        for (const n of data.notes) {
+            if (!n || !validId(n.id) || noteIds.has(n.id) || !ids.has(n.companyId) || !validId(n.eventId) || !['一面','二面','三面'].includes(n.stage) || typeof n.meetingAt !== 'string' || (n.meetingAt && (!Number.isFinite(Date.parse(n.meetingAt)) || new Date(n.meetingAt).toISOString() !== n.meetingAt)) || typeof n.title !== 'string' || n.title.length > 200 || typeof n.body !== 'string' || n.body.length > 20000 || !['面经','复盘','碎碎念'].includes(n.category) || !validTime(n.updatedAt)) throw new Error('面试笔记无效');
+            noteIds.add(n.id);
+        }
     }
     if (data.historyEdits !== undefined && (!Array.isArray(data.historyEdits) || data.historyEdits.length > 100 || data.historyEdits.some(e => !e || !validId(e.id) || !validTime(e.at)))) throw new Error('反馈时间无效');
     if(data.activity!==undefined){
@@ -55,13 +64,14 @@ export function validateSnapshot(input: unknown): Snapshot {
 const app = new Hono<{ Bindings: Bindings }>();
 app.use('/api/*', async (c, next) => { c.header('Cache-Control', 'no-store'); await next(); });
 async function read(db: D1Database): Promise<Snapshot> {
-    const [companies, roles, meta] = await db.batch<Record<string, unknown>>([
+    const [companies, roles, meta, notes] = await db.batch<Record<string, unknown>>([
         db.prepare('SELECT * FROM companies ORDER BY position, created_at DESC, id'),
         db.prepare('SELECT name FROM roles ORDER BY sort_order'),
         db.prepare('SELECT revision FROM sync_meta WHERE id = 1'),
+        db.prepare('SELECT * FROM interview_notes'),
     ]);
     const records: Company[] = companies.results.map(r => ({ id:String(r.id), name:String(r.name), link:String(r.link), deadline:String(r.deadline), roles:JSON.parse(String(r.roles)), dept:String(r.dept), appliedAt:String(r.applied_at), status:String(r.status), note:String(r.note), updatedAt:Math.round(Number(r.updated_at)*1000), starred:!!r.starred, deletedAt:Number(r.deleted_at), interview:JSON.parse(String(r.interview)) }));
-    return { v:3, revision:Number(meta.results[0].revision), roles:roles.results.map(r => String(r.name)), companies:records.filter(r => !r.deletedAt), trash:records.filter(r => r.deletedAt) };
+    return { v:3, revision:Number(meta.results[0].revision), roles:roles.results.map(r => String(r.name)), notes:notes.results.filter(n=>records.some(r=>r.id===n.company_id)).map(n=>({id:String(n.id),companyId:String(n.company_id),eventId:String(n.event_id),stage:String(n.stage),meetingAt:String(n.meeting_at),title:String(n.title),body:String(n.body),category:String(n.category),updatedAt:Number(n.updated_at)})), companies:records.filter(r => !r.deletedAt), trash:records.filter(r => r.deletedAt) };
 }
 async function history(db: D1Database, companyId?: string): Promise<History[]> {
     const [result] = await db.batch<Record<string, unknown>>([db.prepare(companyId ? 'SELECT * FROM company_history WHERE company_id = ? ORDER BY occurred_at DESC, recorded_at DESC, rowid DESC' : 'SELECT * FROM company_history ORDER BY occurred_at DESC, recorded_at DESC, rowid DESC').bind(...(companyId ? [companyId] : []))]);
@@ -108,6 +118,16 @@ async function write(db: D1Database, data: Snapshot, restoreHistory = false) {
         const fallback=events.filter(h=>!covered.has(h.companyId));
         events.splice(0,events.length,...fallback,...data.activity.map(h=>({...h,recordedAt:now})));
     }
+    const mergedNotes = new Map((previous.notes || []).map(n=>[n.id,n]));
+    const knownEvents = data.notes?.some(n=>!mergedNotes.has(n.id)) ? new Map([...(await history(db)),...events,...(restoreHistory?data.history||[]:[])].map(h=>[h.id,h])) : new Map<string,History>();
+    for (const n of data.notes || []) {
+        if (mergedNotes.has(n.id) && mergedNotes.get(n.id)!.companyId !== n.companyId) throw new Error('笔记编号与其他记录冲突');
+        const beforeNote=mergedNotes.get(n.id);
+        if(beforeNote && (beforeNote.eventId!==n.eventId || beforeNote.stage!==n.stage))throw new Error('笔记的面试关联不能更改');
+        if(!beforeNote && (!knownEvents.has(n.eventId) || knownEvents.get(n.eventId)!.companyId!==n.companyId || knownEvents.get(n.eventId)!.toStatus!==n.stage))throw new Error('笔记关联的面试历史无效');
+        mergedNotes.set(n.id,n);
+    }
+    validateSnapshot({...data, companies:active, trash:[...archive.values()], notes:[...mergedNotes.values()]});
     const token = crypto.randomUUID(), gate = 'EXISTS (SELECT 1 FROM sync_meta WHERE id = 1 AND write_token = ?)';
     const batch = [
         db.prepare('UPDATE sync_meta SET revision = revision + 1, write_token = ? WHERE id = 1 AND revision = ?').bind(token,data.revision),
@@ -128,6 +148,8 @@ async function write(db: D1Database, data: Snapshot, restoreHistory = false) {
     batch.push(db.prepare(`INSERT INTO company_history(id,company_id,kind,from_status,to_status,detail,occurred_at,recorded_at)
         SELECT json_extract(value,'$.id'),json_extract(value,'$.companyId'),json_extract(value,'$.kind'),json_extract(value,'$.fromStatus'),json_extract(value,'$.toStatus'),json_extract(value,'$.detail'),json_extract(value,'$.at'),json_extract(value,'$.recordedAt') FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(events),token));
     for (const edit of data.historyEdits || []) batch.push(db.prepare(`UPDATE company_history SET occurred_at = ? WHERE id = ? AND kind IN ('baseline','created','status') AND ${gate}`).bind(edit.at,edit.id,token));
+    batch.push(db.prepare(`INSERT OR REPLACE INTO interview_notes(id,company_id,event_id,stage,meeting_at,title,body,category,updated_at)
+        SELECT json_extract(value,'$.id'),json_extract(value,'$.companyId'),json_extract(value,'$.eventId'),json_extract(value,'$.stage'),json_extract(value,'$.meetingAt'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.category'),json_extract(value,'$.updatedAt') FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(data.notes || []),token));
     const result = await db.batch(batch);
     return result[0].meta.changes > 0;
 }
@@ -154,7 +176,7 @@ for (const path of ['/api/data','/api/backup']) app.put(path,async c => {
         if (!await write(c.env.DB,data,path==='/api/backup')) return c.json({error:'另一台设备已更新数据，请先备份当前修改，再重新载入'},409);
         return c.json({ok:true,revision:data.revision+1});
     } catch(e) {
-        if(e instanceof Error && /超过上限|编号.*冲突|历史状态/.test(e.message)) return c.json({error:e.message},400);
+        if(e instanceof Error && /超过上限|编号.*冲突|历史状态|笔记/.test(e.message)) return c.json({error:e.message},400);
         throw e;
     }
 });

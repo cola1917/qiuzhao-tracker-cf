@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const STATUSES = ['未投', '已投', '测评', '笔试', '一面', '二面', '三面', 'OC', '已挂'];
 const LIVE = ['测评', '笔试', '一面', '二面', '三面'];
 const DEFAULT_ROLES = ['具身智能算法', '机器人算法', 'VLA / 多模态算法', '机器人仿真', 'Sim2Real', '感知算法', 'SLAM / 定位', '运动规划', '运动控制', '强化学习', '大模型算法', 'AI Infra', '端侧部署', '机械工程师', '结构工程师', '软件开发'];
-const emptyState = () => ({ v: 3, revision: 0, roles: [...DEFAULT_ROLES], companies: [], trash: [], history: [], historyEdits: [], activity: [] });
+const emptyState = () => ({ v: 3, revision: 0, roles: [...DEFAULT_ROLES], companies: [], trash: [], history: [], notes: [], historyEdits: [], activity: [] });
 let state = emptyState(), mode = 'loading', dirty = false, saving = false, generation = 0, timer, blocked = false, pending = null;
 let view = 'all';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -75,6 +75,7 @@ function normalize(raw) {
     }
     if (result.roles.length > 200)
         throw new Error('岗位不能超过 200 个');
+    result.notes=normalizeNotes(raw.notes,ids);
     result.history=normalizeHistory(raw.history,new Set([...result.companies,...result.trash].map(c=>c.id)));
     result.activity=normalizeHistory(raw.activity,new Set([...result.companies,...result.trash].map(c=>c.id)));
     result.historyEdits=Array.isArray(raw.historyEdits)?raw.historyEdits.filter(e=>e&&/^[a-zA-Z0-9_-]{1,100}$/.test(e.id)&&Number.isSafeInteger(e.at)&&e.at>=0):[];
@@ -193,8 +194,7 @@ function renderStats() {
         n.live++; if (co.status === 'OC')
         n.oc++; if (co.status === '已挂')
         n.out++; });
-    $('navcount').textContent = n.all;
-    $('stats').innerHTML = [[n.all, '全部投递', '把握每一个值得尝试的机会', '↗'], [n.todo, '待投递', '准备好，就向前一步', '◷'], [n.live, '进行中', '笔试与面试，持续向前', '↗'], [n.oc, '收获 Offer', '努力正在得到回响', '✧']].map(([value, label, desc, icon]) => `<div class="stat"><div class="stat-label">${label}<i>${icon}</i></div><strong>${value.toString().padStart(2, '0')}</strong><small>${desc}</small></div>`).join('');
+    $('stats').innerHTML = [[n.all, '全部投递', '把握每一个值得尝试的机会', '↗'], [n.todo, '待投递', '准备好，就向前一步', '◷'], [n.live, '进行中', '笔试与面试，持续向前', '↗'], [n.oc, '收获 Offer', '努力正在得到回响', '✧']].map(([value, label, desc, icon],index) => `<button type="button" class="stat ${view===['all','todo','live','oc'][index]?'active':''}" data-view="${['all','todo','live','oc'][index]}" aria-pressed="${view===['all','todo','live','oc'][index]}"><div class="stat-label">${label}<i>${icon}</i></div><strong>${value.toString().padStart(2, '0')}</strong><small>${desc}</small></button>`).join('');
     const stageCounts = [n.todo, n.sent - n.live - n.oc - n.out, n.live, n.oc, n.out];
     $('pipeline').innerHTML = ['待投递', '已投递', '笔试 / 面试', 'Offer', '已结束'].map((label, i) => `<div class="stage"><div class="track"><i style="width:${n.all ? Math.round(stageCounts[i] / n.all * 100) : 0}%"></i></div><span class="stage-label">${label}</span><b>${stageCounts[i].toString().padStart(2, '0')}</b></div>`).join('');
     const upcoming = state.companies.filter(co => co.status === '未投' && co.deadline && days(co.deadline) >= 0 && days(co.deadline) <= 7).sort((a, b) => a.deadline.localeCompare(b.deadline));
@@ -202,12 +202,11 @@ function renderStats() {
 }
 function render() { renderStats(); renderTable(); renderAgenda(); }
 function touchCompany(co) {
-    tableSortPending=true;
     co.updatedAt = Math.max(Date.now(), ...state.companies.map(c => (c.updatedAt || 0) + 1));
 }
 function sortCompanies(list, sort) {
     const result = [...list];
-    if (sort === 'added')
+    if (sort === 'updated')
         result.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     if (sort === 'applied')
         result.sort((a, b) => (b.appliedAt || '').localeCompare(a.appliedAt || ''));
@@ -220,7 +219,6 @@ function sortCompanies(list, sort) {
     return result;
 }
 function renderTable() {
-    tableSortPending=false;
     const query = $('q').value.trim().toLowerCase(), status = $('statusfilter').value;
     const list = sortCompanies(state.companies.filter(co => (!$('starfilter').checked||co.starred) && (view === 'all' || view === 'todo' && co.status === '未投' || view === 'live' && LIVE.includes(co.status) || view === 'oc' && co.status === 'OC') && (!status || co.status === status) && (!query || [co.name, co.dept, co.note, ...co.roles].join(' ').toLowerCase().includes(query))), $('sort').value);
     $('view-title').innerHTML = ({ all: '全部投递', todo: '待投清单', live: '进行中', oc: '收获 Offer' }[view]) + ` <span>${list.length}</span>`;
@@ -280,7 +278,8 @@ document.addEventListener('click', e => {
     const nav = e.target.closest('[data-view]');
     if (nav) {
         view = nav.dataset.view;
-        document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el === nav));
+        document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+        $('q').value='';$('starfilter').checked=false;
         $('statusfilter').value = '';
         render();
     }
@@ -381,13 +380,6 @@ $('rows').addEventListener('change', e => {
         changed(false);
     }
 });
-$('rows').addEventListener('focusout', () => {
-    // Keep the row stable while filling its fields; reorder after leaving the table.
-    setTimeout(() => {
-        if (tableSortPending && $('sort').value === 'added' && !$('rows').contains(document.activeElement))
-            renderTable();
-    }, 0);
-});
 $('rows').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.new-role')) {
     e.preventDefault();
     e.target.parentElement.querySelector('button').click();
@@ -411,6 +403,8 @@ $('fileinput').onchange = async (e) => { const file = e.target.files[0]; e.targe
     const incomingIds=new Set([...incoming.companies,...incoming.trash].map(c=>c.id));
     incoming.trash.push(...[...state.companies,...(state.trash||[])].filter(c=>!incomingIds.has(c.id)).map(c=>({...c,deletedAt:c.deletedAt||Date.now()})));
     if(incoming.trash.length>2000)throw new Error('恢复后回收站会超过 2000 条，当前数据未更改');
+    const noteIds=new Set(incoming.notes.map(n=>n.id));
+    incoming.notes.push(...(state.notes||[]).filter(n=>!noteIds.has(n.id)));
     state = incoming;
     notice('已恢复备份，正在保存。');
     changed();
@@ -479,6 +473,7 @@ window.addEventListener('online', () => { if (dirty && !blocked)
 // Remove the retired application password from this tab; Cloudflare owns login.
 try { sessionStorage.removeItem('qiuzhao-token'); } catch {}
 initWorkbenchFeatures();
+initInterviewNotes();
 render();
 flag('saving', '正在加载…');
 connect().catch(error => {

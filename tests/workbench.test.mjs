@@ -107,3 +107,38 @@ test('failed history insertion rolls back records, archive and revision together
  const data=await load(env);data.companies[0].status='二面';
  assert.equal((await save(env,data)).status,500);const actual=await load(env);assert.equal(actual.revision,1);assert.equal(actual.companies[0].status,'未投');assert.equal((await history(env,'a')).length,1);
 });
+
+
+test('interview notes survive edits, archive, legacy saves and complete backup restore; stale saves fail',async()=>{
+ const env=environment();await save(env,{revision:0,roles:[],companies:[{...company('a'),status:'一面'}]});
+ let data=await load(env);const event=(await history(env,'a'))[0];
+ const note={id:'n1',companyId:'a',eventId:event.id,stage:'一面',meetingAt:'',title:'复盘',body:'## 技术题\n- 回答思路',category:'面经',updatedAt:Date.now()};
+ data.notes=[note];assert.equal((await save(env,data)).status,200);
+ assert.equal((await save(env,data)).status,409);
+ data=await load(env);data.companies[0].status='二面';delete data.notes;await save(env,data);
+ data=await load(env);assert.deepEqual(data.notes,[note]);
+ data.trash=[{...data.companies[0],deletedAt:Date.now()}];data.companies=[];await save(env,data);
+ const backup=await (await request(env,'/api/backup')).json();assert.deepEqual(backup.notes,[note]);
+ const other=environment();backup.revision=0;assert.equal((await request(other,'/api/backup','PUT',backup)).status,200);
+ const restored=await load(other);assert.deepEqual(restored.notes,[note]);assert.equal(restored.trash[0].id,'a');
+ restored.companies=[{...restored.trash[0],deletedAt:0}];restored.trash=[];await save(other,restored);assert.deepEqual((await load(other)).notes,[note]);
+ const invalid=await load(other);invalid.notes[0].companyId='missing';assert.equal((await save(other,invalid)).status,400);
+});
+
+test('notes and record writes roll back together',async()=>{
+ const env=environment();await save(env,{revision:0,roles:[],companies:[{...company('a'),status:'一面'}]});
+ const data=await load(env),event=(await history(env,'a'))[0];
+ data.notes=[{id:'n',companyId:'a',eventId:event.id,stage:'一面',meetingAt:'',title:'',body:'draft',category:'复盘',updatedAt:Date.now()}];
+ env.DB.db.exec("CREATE TRIGGER fail_note BEFORE INSERT ON interview_notes BEGIN SELECT RAISE(ABORT,'test note rollback'); END");
+ assert.equal((await save(env,data)).status,500);assert.equal((await load(env)).revision,data.revision);assert.equal((await load(env)).notes.length,0);
+});
+
+
+test('note associations cannot target another company or be changed on edit',async()=>{
+ const env=environment();await save(env,{revision:0,roles:[],companies:[{...company('a'),status:'一面'},{...company('b'),status:'一面'}]});
+ let data=await load(env);const event=(await history(env,'a'))[0];
+ data.notes=[{id:'n',companyId:'b',eventId:event.id,stage:'一面',meetingAt:'',title:'',body:'',category:'复盘',updatedAt:Date.now()}];
+ assert.equal((await save(env,data)).status,400);
+ data.notes[0].companyId='a';assert.equal((await save(env,data)).status,200);
+ data=await load(env);data.notes[0].eventId='forged';assert.equal((await save(env,data)).status,400);
+});

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const jsonResponse = (body, init = {}) => new Response(body, {...init, headers: {'Content-Type': 'application/json'}});
-const script = readFileSync(new URL('../public/workbench.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').split("$('add').onclick")[0];
+const script = readFileSync(new URL('../public/interview-notes.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/workbench.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').split("$('add').onclick")[0];
 function harness(fetch) { const storage = new Map(), nodes = new Map(); const ctx = vm.createContext({ crypto, console, fetch, structuredClone, TextEncoder, setTimeout: () => 1, clearTimeout: () => { }, localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) }, document: { getElementById(id) { if (!nodes.has(id))
             nodes.set(id, { dataset: {}, close() { }, focus() { }, textContent: '', hidden: false }); return nodes.get(id); } }, Date, URL, Blob }); vm.runInContext(script + '\nrender=()=>{};', ctx); return { ctx, storage, run: s => vm.runInContext(s, ctx) }; }
 const co = (id) => ({ id, name: '公司', roles: [], status: '未投', link: '', deadline: '', appliedAt: '', dept: '', note: '' });
@@ -49,12 +49,12 @@ test('application dates sort newest first, with blanks last and stable ties, wit
  assert.equal(h.run("sortCompanies(records, 'added')[0].id"), 'blank');
 });
 
-test('default record order uses last edit time, preserves legacy ties, and retains metadata through normalization', () => {
+test('optional recent-edit order retains metadata; default order stays stable', () => {
  const h = harness();
  h.ctx.records = [{...co('legacy'), updatedAt:0}, {...co('old'), updatedAt:1000}, {...co('recent'), updatedAt:2000}, co('legacy-two')];
- assert.equal(h.run("sortCompanies(records, 'added').map(c=>c.id).join(',')"), 'recent,old,legacy,legacy-two');
+ assert.equal(h.run("sortCompanies(records, 'updated').map(c=>c.id).join(',')"), 'recent,old,legacy,legacy-two');
  h.run('state.companies=records;touchCompany(records[1])');
- assert.equal(h.run("sortCompanies(records, 'added')[0].id"), 'old');
+ assert.equal(h.run("sortCompanies(records, 'updated')[0].id"), 'old');
  assert.equal(h.run('records[2].updatedAt'), 2000);
  assert.equal(h.run('normalize({companies:records, roles:[]}).companies[1].updatedAt'), h.run('records[1].updatedAt'));
  assert.match(readFileSync(new URL('../public/index.html', import.meta.url), 'utf8'), /id="sort"[^>]*><option value="added">/);
@@ -68,9 +68,9 @@ test('inline note, status and role edits advance record order without changing u
  h.ctx.rowNode = {addEventListener:(event, handler)=>{h.ctx.handlers[event]=handler;}};
  h.run("document.getElementById = () => rowNode; changed=()=>{};renderTable=()=>{};renderAgenda=()=>{};state.companies=[{id:'a',note:'old',roles:[],status:'未投',appliedAt:'2026-10-01',updatedAt:1},{id:'b',updatedAt:2}];state.roles=['R']");
  const source = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
- h.run(source.slice(source.indexOf("$('rows').addEventListener('input'"),source.indexOf("$('rows').addEventListener('focusout'")));
+ h.run(source.slice(source.indexOf("$('rows').addEventListener('input'"),source.indexOf("$('rows').addEventListener('keydown'")));
  h.run("handlers.input({target:{dataset:{field:'note',id:'a'},value:'new'}})");
- assert.equal(h.run("sortCompanies(state.companies,'added')[0].id"),'a');
+ assert.equal(h.run("sortCompanies(state.companies,'updated')[0].id"),'a');
  const noteTime=h.run('state.companies[0].updatedAt');
  h.run("handlers.input({target:{dataset:{field:'note',id:'a'},value:'new'}})");
  assert.equal(h.run('state.companies[0].updatedAt'),noteTime);
@@ -116,4 +116,35 @@ test('queued activities remain during an in-flight save and only acknowledged op
  const promise=h.run('save()');h.run("state.companies[0].status='二面';addLocalHistory(state.companies[0],'status','一面');generation++;dirty=true");
  resolve(jsonResponse(JSON.stringify({revision:1})));await promise;
  assert.equal(h.run('state.activity.length'),1);assert.equal(h.run('state.activity[0].toStatus'),'二面');assert.equal(h.run('dirty'),true);
+});
+
+
+test('editing never moves the default list, including after normalization and new insertion',()=>{
+ const h=harness();h.run("state.companies=[{id:'first',updatedAt:1},{id:'second',updatedAt:2}];touchCompany(state.companies[1])");
+ assert.equal(h.run("sortCompanies(state.companies,'added').map(c=>c.id).join(',')"),'first,second');
+ h.run("state.companies.unshift({id:'new',updatedAt:3})");
+ assert.equal(h.run("sortCompanies(state.companies,'added').map(c=>c.id).join(',')"),'new,first,second');
+ assert.equal(h.run("sortCompanies(state.companies,'updated')[0].id"),'second');
+});
+
+test('interview note anchors survive rescheduling and completion; later round and cancelled retries are distinct',()=>{
+ const h=harness();
+ const e=(id,kind,stage,at,detail={})=>({id,companyId:'a',kind,toStatus:stage,at,recordedAt:at,detail:JSON.stringify(detail)});
+ h.ctx.events=[e('start','status','一面',1),e('plan','schedule','一面',2,{at:'2026-11-02T06:00:00.000Z'}),e('reschedule','schedule','一面',3,{at:'2026-11-03T06:00:00.000Z',previousAt:'2026-11-02T06:00:00.000Z'}),e('done','complete','一面',4),e('round2','status','二面',5),e('cancel','cancel','二面',6),e('retry','schedule','二面',7)];
+ h.run('state.history=events.slice().reverse()');
+ assert.equal(h.run('interviewContext(events[2]).eventId'),'start');
+ assert.equal(h.run('interviewContext(events[3]).eventId'),'start');
+ assert.equal(h.run('interviewContext(events[4]).eventId'),'round2');
+ assert.equal(h.run('interviewContext(events[6]).eventId'),'retry');
+ assert.match(h.run("notePreview('**重点**\\n<script>alert(1)</script> [bad](javascript:alert)')"), /&lt;script&gt;/);
+ assert.doesNotMatch(h.run("notePreview('[bad](javascript:alert)')"), /href=/);
+});
+
+test('statistics are the sole accessible view controls',()=>{
+ const h=harness();h.run('renderStats()');
+ const markup=h.run("document.getElementById('stats').innerHTML");
+ for(const view of ['all','todo','live','oc'])assert.match(markup,new RegExp('data-view="'+view+'"'));
+ assert.match(markup,/aria-pressed="true"/);
+ const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+ assert.doesNotMatch(html,/nav aria-label="工作台视图"/);
 });
