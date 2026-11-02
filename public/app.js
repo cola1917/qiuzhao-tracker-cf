@@ -225,7 +225,7 @@ function renderTable() {
     $('rows').innerHTML = list.map(co => {
         const remaining = days(co.deadline);
         const input = (field, placeholder = '', type = 'text') => `<input class="inline-input ${field === 'name' ? 'company-name' : ''}" data-field="${field}" data-id="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} ${({ name: '公司名称', link: '投递链接', dept: '部门', deadline: '截止日期', appliedAt: '投递时间', note: '备注' })[field]}" type="${type}" value="${esc(co[field])}" placeholder="${placeholder}" maxlength="${field === 'note' ? 5000 : 2000}">`;
-        return `<tr data-row="${esc(co.id)}" class="${co.starred ? 'starred-row' : ''}"><td class="company-cell"><div class="company-with-star"><button type="button" class="star-button" data-star="${esc(co.id)}" aria-label="${co.starred ? '取消' : '添加'}星标 ${esc(co.name)}" aria-pressed="${!!co.starred}">${co.starred ? '★' : '☆'}</button><div>${input('name', '公司名称…')}${input('link', '投递链接 / 来源')}</div></div></td><td class="role-cell"><details class="role-select" data-role-menu="${esc(co.id)}"><summary>${roleSummary(co)}</summary><div class="role-menu">${state.roles.map((r, i) => `<div class="role-choice"><label><input type="checkbox" data-company-role="${esc(co.id)}" data-role-index="${i}" ${co.roles.includes(r) ? 'checked' : ''}>${esc(r)}</label><button type="button" data-delete-role="${i}" aria-label="删除岗位 ${esc(r)}">×</button></div>`).join('')}<div class="role-add"><input class="new-role" aria-label="新岗位" maxlength="100" placeholder="添加岗位…"><button type="button" data-add-role="${esc(co.id)}">＋</button></div></div></details>${input('dept', '部门 / 团队')}</td><td><select class="inline-status ${statusClass(co.status)}" data-status="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} 投递状态">${STATUSES.map(s => `<option ${co.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select><div class="phase-label">${phaseName(co)}</div></td><td class="meeting-cell">${renderMeetingCell(co)}</td><td class="date"><label class="date-label">截止</label>${input('deadline', '', 'date')}<span class="due ${remaining < 0 ? 'late' : ''}" data-due>${dueText(co.deadline)}</span><label class="date-label">投递</label>${input('appliedAt', '', 'date')}</td><td>${input('note', '内推码、面试安排…')}</td><td><div class="row-actions"><button type="button" class="history-button" data-history="${esc(co.id)}" aria-expanded="${openedCompany===co.id}">${openedCompany===co.id ? '收起 ⌃' : '历史 ⌄'}</button><button class="delete-row" data-delete="${esc(co.id)}" aria-label="删除 ${esc(co.name || '此记录')}">×</button></div></td></tr>` + (openedCompany===co.id ? renderCompanyDetails(co) : '');
+        return `<tr data-row="${esc(co.id)}" class="${co.starred ? 'starred-row' : ''}"><td class="company-cell"><div class="company-with-star"><button type="button" class="star-button" data-star="${esc(co.id)}" aria-label="${co.starred ? '取消' : '添加'}星标 ${esc(co.name)}" aria-pressed="${!!co.starred}">${co.starred ? '★' : '☆'}</button><div>${input('name', '公司名称…')}${input('link', '投递链接 / 来源')}</div></div></td><td class="role-cell"><details class="role-select" data-role-menu="${esc(co.id)}"><summary>${roleSummary(co)}</summary>${roleMenuMarkup(co)}</details>${input('dept', '部门 / 团队')}</td><td><select class="inline-status ${statusClass(co.status)}" data-status="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} 投递状态">${STATUSES.map(s => `<option ${co.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select><div class="phase-label">${phaseName(co)}</div></td><td class="meeting-cell">${renderMeetingCell(co)}</td><td class="date"><label class="date-label">截止</label>${input('deadline', '', 'date')}<span class="due ${remaining < 0 ? 'late' : ''}" data-due>${dueText(co.deadline)}</span><label class="date-label">投递</label>${input('appliedAt', '', 'date')}</td><td>${input('note', '内推码、面试安排…')}</td><td><div class="row-actions"><button type="button" class="history-button" data-history="${esc(co.id)}" aria-expanded="${openedCompany===co.id}">${openedCompany===co.id ? '收起 ⌃' : '历史 ⌄'}</button><button class="delete-row" data-delete="${esc(co.id)}" aria-label="删除 ${esc(co.name || '此记录')}">×</button></div></td></tr>` + (openedCompany===co.id ? renderCompanyDetails(co) : '');
     }).join('');
     $('empty').hidden = !!list.length;
     $('rows').closest('table').hidden = !list.length;
@@ -301,7 +301,7 @@ document.addEventListener('click', e => {
     const add = e.target.closest('[data-add-role]');
     if (add) {
         const input = add.parentElement.querySelector('input');
-        const role = input.value.trim();
+        const role = existingRoleName(input.value);
         if (!role)
             return;
         if (state.roles.length >= 200 && !state.roles.includes(role)) {
@@ -472,6 +472,7 @@ window.addEventListener('online', () => { if (dirty && !blocked)
     save(); });
 // Remove the retired application password from this tab; Cloudflare owns login.
 try { sessionStorage.removeItem('qiuzhao-token'); } catch {}
+initRolePicker();
 initWorkbenchFeatures();
 initInterviewNotes();
 render();

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const jsonResponse = (body, init = {}) => new Response(body, {...init, headers: {'Content-Type': 'application/json'}});
-const script = readFileSync(new URL('../public/interview-notes.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/workbench.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').split("$('add').onclick")[0];
+const script = readFileSync(new URL('../public/role-picker.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/interview-notes.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/workbench.js', import.meta.url),'utf8')+'\n'+readFileSync(new URL('../public/app.js', import.meta.url), 'utf8').split("$('add').onclick")[0];
 function harness(fetch) { const storage = new Map(), nodes = new Map(); const ctx = vm.createContext({ crypto, console, fetch, structuredClone, TextEncoder, setTimeout: () => 1, clearTimeout: () => { }, localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) }, document: { getElementById(id) { if (!nodes.has(id))
             nodes.set(id, { dataset: {}, close() { }, focus() { }, textContent: '', hidden: false }); return nodes.get(id); } }, Date, URL, Blob }); vm.runInContext(script + '\nrender=()=>{};', ctx); return { ctx, storage, run: s => vm.runInContext(s, ctx) }; }
 const co = (id) => ({ id, name: '公司', roles: [], status: '未投', link: '', deadline: '', appliedAt: '', dept: '', note: '' });
@@ -147,4 +147,28 @@ test('statistics are the sole accessible view controls',()=>{
  assert.match(markup,/aria-pressed="true"/);
  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
  assert.doesNotMatch(html,/nav aria-label="工作台视图"/);
+});
+
+
+test('role picker keeps original role indices, prioritizes selections and usage, and searches every role',()=>{
+ const h=harness();h.run("state.roles=['A','B','C','D','E','F','G','H','I'];state.companies=[{id:'a',roles:['I']},{id:'b',roles:['H']},{id:'c',roles:['H']}]");
+ assert.equal(h.run('groupedRoles(state.companies[0]).selected[0].name'),'I');
+ assert.equal(h.run('groupedRoles(state.companies[0]).common[0].name'),'H');
+ assert.equal(h.run('groupedRoles(state.companies[0]).common[0].index'),7);
+ assert.equal(h.run('groupedRoles(state.companies[0]).other.length'),2);
+ assert.match(h.run("roleOptionsMarkup(state.companies[0],'g')"),/data-role-index="6"/);
+ assert.match(h.run("roleOptionsMarkup(state.companies[0],'missing')"),/没有匹配/);
+ assert.match(h.run('roleOptionsMarkup(state.companies[0])'),/details class="role-more">/);
+ h.run("state.roles=['AI Infra']");
+ assert.equal(h.run("existingRoleName(' ai   infra ')"),'AI Infra');
+});
+
+test('role picker closes outside, keeps inside selection open and supports Escape',()=>{
+ const h=harness(),listeners={};
+ h.ctx.document.addEventListener=(name,fn)=>listeners[name]=fn;
+ const menu={dataset:{roleMenu:'a'},open:true,contains:()=>true,querySelector:()=>({focus(){menu.focused=true;}})};
+ h.ctx.document.querySelectorAll=()=>[menu];h.run('initRolePicker()');
+ listeners.click({target:{closest:()=>({dataset:{roleMenu:'a'}})}});assert.equal(menu.open,true);
+ listeners.click({target:{closest:()=>null}});assert.equal(menu.open,false);
+ menu.open=true;listeners.keydown({key:'Escape'});assert.equal(menu.open,false);assert.equal(menu.focused,true);
 });

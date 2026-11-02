@@ -1,5 +1,12 @@
 .agenda-strip{display:flex;align-items:flex-start;gap:24px;padding:0 0 22px;margin-bottom:24px;border-bottom:1px solid var(--line)}
 button.stat{text-align:left;font-family:inherit;cursor:pointer;position:relative}
+.role-search{width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd0c1;border-radius:4px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px}
+.role-group-title{font-size:11px;color:#465046;margin:12px 4px 5px;font-weight:600}
+.role-choice{padding:6px 3px;gap:6px}.role-choice label{overflow-wrap:anywhere;min-width:0}
+.role-more{margin-top:8px;border-top:1px solid var(--line);padding-top:5px}
+.role-select .role-more>summary{font-size:12px;color:#7d301c;min-height:24px;padding:5px 3px}
+.role-more>summary:after{content:' ▾'}.role-more[open]>summary:after{content:' ▴'}
+.role-empty{font-size:12px;color:#465046;padding:8px 3px}
 button.stat.active:after{content:'';position:absolute;bottom:0;left:0;width:44px;height:3px;background:var(--green)}
 button.stat:hover .stat-label,button.stat.active .stat-label{color:var(--green)}
 button.stat:focus-visible{outline:2px solid var(--green);outline-offset:4px}
