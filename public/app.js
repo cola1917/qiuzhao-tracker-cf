@@ -33,6 +33,7 @@ function normalize(raw) {
         throw new Error('数据量超过上限，请精简备注后重试');
     if(raw.trash!==undefined && (!Array.isArray(raw.trash)||raw.trash.length>2000))throw new Error('回收站数据无效');
     const result = { v: 3, revision: Number.isSafeInteger(raw.revision) && raw.revision >= 0 ? raw.revision : 0, roles: [], companies: [], trash: [] };
+    result.roleAliases=raw.roleAliases&&typeof raw.roleAliases==='object'?Object.fromEntries(Object.entries(raw.roleAliases).filter(([a,b])=>a.length<=100&&typeof b==='string'&&b.length<=100)):{};
     const roles = Array.isArray(raw.roles) ? raw.roles : DEFAULT_ROLES;
     for (const r of roles) {
         if (typeof r !== 'string' || !r.trim() || r.length > 100)

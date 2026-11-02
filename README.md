@@ -114,6 +114,7 @@ npm run deploy
 | `0003_sync.sql` | 记录排序、同步版本与写入标记 |
 | `0004_workbench.sql` | 星标、回收站、面试安排与独立历史表 |
 | `0005_interview_notes.sql` | 独立面试笔记表，沿用当前 D1 |
+| `0006_merge_role_names.sql` | 同义岗位归并，同时更新投递与回收站的岗位关联 |
 
 新功能沿用现有 D1，无需新建库。历史功能启用时，只以当时的状态建立起点，不推测过去的面试日期或反馈过程。
 
@@ -172,3 +173,5 @@ docs/images/             使用虚构数据的功能截图
 ```
 
 技术参考：[Cloudflare D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/)、[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/)、[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/)。
+
+岗位同义名称映射维护在 `src/role-aliases.ts`。服务端保存旧备份或旧客户端数据时也会归并；新建岗位优先复用标准名称。具体职责不同的岗位（例如三维重建算法、测试开发、Infra）保持区分。

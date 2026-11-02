@@ -172,3 +172,9 @@ test('role picker closes outside, keeps inside selection open and supports Escap
  listeners.click({target:{closest:()=>null}});assert.equal(menu.open,false);
  menu.open=true;listeners.keydown({key:'Escape'});assert.equal(menu.open,false);assert.equal(menu.focused,true);
 });
+
+
+test('new role entry resolves semantic aliases to the canonical label',()=>{
+ const h=harness();h.run("state.roles=['机器人算法'];state.roleAliases={'机器人算法研究员':'机器人算法'}");
+ assert.equal(h.run("existingRoleName('机器人算法研究员')"),'机器人算法');
+});

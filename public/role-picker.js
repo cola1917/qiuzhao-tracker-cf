@@ -1,7 +1,10 @@
 'use strict';
 function existingRoleName(name) {
     const key=value=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();
-    return state.roles.find(r=>key(r)===key(name))||name.trim().replace(/\s+/g,' ');
+    const normalized=name.trim().replace(/\s+/g,' ');
+    const alias=Object.entries(state.roleAliases||{}).find(([from])=>key(from)===key(normalized));
+    const target=alias?alias[1]:normalized;
+    return state.roles.find(r=>key(r)===key(target))||target;
 }
 function groupedRoles(co,query='') {
     const counts=new Map();

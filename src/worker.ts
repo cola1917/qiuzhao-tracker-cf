@@ -1,4 +1,7 @@
 import { Hono } from 'hono';
+import roleAliases from './role-aliases.ts';
+const canonicalRole = (role: string) => Object.hasOwn(roleAliases,role) ? (roleAliases as Record<string,string>)[role] : role;
+const canonicalRoles = (roles: string[]) => [...new Set(roles.map(canonicalRole))];
 type Bindings = { DB: D1Database; ASSETS: Fetcher };
 type Interview = { phase: 'pending' | 'scheduled' | 'feedback'; at: string; location: string };
 export type Company = {
@@ -8,7 +11,7 @@ export type Company = {
 };
 type History = { id: string; companyId: string; kind: string; fromStatus: string; toStatus: string; detail: string; at: number; recordedAt: number };
 type InterviewNote = { id: string; companyId: string; eventId: string; stage: string; meetingAt: string; title: string; body: string; category: string; updatedAt: number };
-type Snapshot = { v: number; revision: number; roles: string[]; companies: Company[]; notes?: InterviewNote[]; trash?: Company[]; history?: History[]; activity?: History[]; historyEdits?: { id: string; at: number }[] };
+type Snapshot = { v: number; revision: number; roles: string[]; roleAliases?: Record<string,string>; companies: Company[]; notes?: InterviewNote[]; trash?: Company[]; history?: History[]; activity?: History[]; historyEdits?: { id: string; at: number }[] };
 const statuses = ['未投', '已投', '测评', '笔试', '一面', '二面', '三面', 'OC', '已挂'];
 const fields = ['id', 'name', 'link', 'deadline', 'dept', 'appliedAt', 'status', 'note'] as const;
 const validId = (id: unknown): id is string => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id);
@@ -59,7 +62,7 @@ export function validateSnapshot(input: unknown): Snapshot {
             eventIds.add(h.id);
         }
     }
-    return { ...data, v: 3 };
+    return { ...data, v: 3, roles:canonicalRoles(data.roles), companies:data.companies.map(co=>({...co,roles:canonicalRoles(co.roles)})), trash:data.trash?.map(co=>({...co,roles:canonicalRoles(co.roles)})) };
 }
 const app = new Hono<{ Bindings: Bindings }>();
 app.use('/api/*', async (c, next) => { c.header('Cache-Control', 'no-store'); await next(); });
@@ -71,7 +74,7 @@ async function read(db: D1Database): Promise<Snapshot> {
         db.prepare('SELECT * FROM interview_notes'),
     ]);
     const records: Company[] = companies.results.map(r => ({ id:String(r.id), name:String(r.name), link:String(r.link), deadline:String(r.deadline), roles:JSON.parse(String(r.roles)), dept:String(r.dept), appliedAt:String(r.applied_at), status:String(r.status), note:String(r.note), updatedAt:Math.round(Number(r.updated_at)*1000), starred:!!r.starred, deletedAt:Number(r.deleted_at), interview:JSON.parse(String(r.interview)) }));
-    return { v:3, revision:Number(meta.results[0].revision), roles:roles.results.map(r => String(r.name)), notes:notes.results.filter(n=>records.some(r=>r.id===n.company_id)).map(n=>({id:String(n.id),companyId:String(n.company_id),eventId:String(n.event_id),stage:String(n.stage),meetingAt:String(n.meeting_at),title:String(n.title),body:String(n.body),category:String(n.category),updatedAt:Number(n.updated_at)})), companies:records.filter(r => !r.deletedAt), trash:records.filter(r => r.deletedAt) };
+    return { v:3, roleAliases, revision:Number(meta.results[0].revision), roles:roles.results.map(r => String(r.name)), notes:notes.results.filter(n=>records.some(r=>r.id===n.company_id)).map(n=>({id:String(n.id),companyId:String(n.company_id),eventId:String(n.event_id),stage:String(n.stage),meetingAt:String(n.meeting_at),title:String(n.title),body:String(n.body),category:String(n.category),updatedAt:Number(n.updated_at)})), companies:records.filter(r => !r.deletedAt), trash:records.filter(r => r.deletedAt) };
 }
 async function history(db: D1Database, companyId?: string): Promise<History[]> {
     const [result] = await db.batch<Record<string, unknown>>([db.prepare(companyId ? 'SELECT * FROM company_history WHERE company_id = ? ORDER BY occurred_at DESC, recorded_at DESC, rowid DESC' : 'SELECT * FROM company_history ORDER BY occurred_at DESC, recorded_at DESC, rowid DESC').bind(...(companyId ? [companyId] : []))]);

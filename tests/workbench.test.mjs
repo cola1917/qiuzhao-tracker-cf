@@ -142,3 +142,23 @@ test('note associations cannot target another company or be changed on edit',asy
  data.notes[0].companyId='a';assert.equal((await save(env,data)).status,200);
  data=await load(env);data.notes[0].eventId='forged';assert.equal((await save(env,data)).status,400);
 });
+
+
+test('role consolidation migrates active and archived associations, deduplicates and preserves record metadata',async()=>{
+ const env=environment();await save(env,{revision:0,roles:['具身智能算法','具身智能算法工程师','数据科学工程','数据科学'],companies:[{...company('a',['具身智能算法','具身智能算法工程师']),updatedAt:1234}],trash:[{...company('b',['数据科学工程','数据科学']),deletedAt:5678,updatedAt:3456}]});
+ const before=await load(env),oldHistory=await history(env,'a');
+ env.DB.db.exec(readFileSync(new URL('../migrations/0006_merge_role_names.sql',import.meta.url),'utf8'));
+ const after=await load(env);assert.equal(after.revision,before.revision+1);
+ assert.deepEqual(after.companies[0].roles,['具身智能算法']);assert.deepEqual(after.trash[0].roles,['数据科学']);
+ assert.equal(after.companies[0].updatedAt,before.companies[0].updatedAt);assert.equal(after.trash[0].deletedAt,5678);
+ assert.deepEqual(await history(env,'a'),oldHistory);
+ assert.equal(after.roles.filter(r=>r==='具身智能算法').length,1);
+});
+
+test('old role names from backup or clients are canonicalized on save and never recreate duplicate labels',async()=>{
+ const env=environment();
+ const data={revision:0,roles:['机器人算法研究员','机器人算法','智驾仿真开发工程师'],companies:[company('a',['机器人算法研究员','机器人算法'])],trash:[{...company('b',['智驾仿真开发工程师']),deletedAt:1}]};
+ assert.equal((await save(env,data)).status,200);const result=await load(env);
+ assert.deepEqual(result.roles,['机器人算法','智驾仿真开发']);assert.deepEqual(result.companies[0].roles,['机器人算法']);assert.deepEqual(result.trash[0].roles,['智驾仿真开发']);
+ assert.equal(result.roleAliases['数据科学工程'],'数据科学');
+});
