@@ -141,7 +141,11 @@ async function save() {
         flag('error', '修改尚未同步');
         if ([401, 409, 503, 400].includes(error.status)) {
             blocked = true;
-            notice(error.message + '。可在「数据管理」中备份当前数据。', true);
+            if (error.status === 409) {
+                pending = { state: copy(state), pending: true };
+                $('recovery').hidden = false;
+            }
+            notice(error.message + '。可在上方选择「保留本机修改并同步」或「用云端最新数据」。', true);
         }
         else {
             notice('连接中断，修改已在本机暂存，将自动重试。', true);
@@ -200,8 +204,10 @@ function renderStats() {
     $('pipeline').innerHTML = ['待投递', '已投递', '笔试 / 面试', 'Offer', '已结束'].map((label, i) => `<div class="stage"><div class="track"><i style="width:${n.all ? Math.round(stageCounts[i] / n.all * 100) : 0}%"></i></div><span class="stage-label">${label}</span><b>${stageCounts[i].toString().padStart(2, '0')}</b></div>`).join('');
     const upcoming = state.companies.filter(co => co.status === '未投' && co.deadline && days(co.deadline) >= 0 && days(co.deadline) <= 7).sort((a, b) => a.deadline.localeCompare(b.deadline));
     $('upcoming').innerHTML = upcoming.length ? upcoming.slice(0, 3).map(co => `<div class="upcoming-item"><i></i><button data-edit="${esc(co.id)}">${esc(co.name || '未命名公司')}</button><small>${days(co.deadline) === 0 ? '今天截止' : days(co.deadline) + ' 天后截止'}</small></div>`).join('') + (upcoming.length > 3 ? `<p class="quiet">另有 ${upcoming.length - 3} 家即将截止，筛选「待投清单」查看</p>` : '') : '<p class="quiet">暂无即将截止的待投机会，按自己的节奏前进。</p>';
+    $('nav-company-count').textContent = String(n.all);
+    $('nav-note-count').textContent = String((state.notes || []).length);
 }
-function render() { renderStats(); renderTable(); renderAgenda(); }
+function render() { renderStats(); renderTable(); renderAgenda(); if (typeof renderReviewsPage === 'function') renderReviewsPage(); }
 function touchCompany(co) {
     co.updatedAt = Math.max(Date.now(), ...state.companies.map(c => (c.updatedAt || 0) + 1));
 }
@@ -413,16 +419,21 @@ $('fileinput').onchange = async (e) => { const file = e.target.files[0]; e.targe
 catch (error) {
     notice('恢复失败：' + error.message, true);
 } };
-$('recover').onclick = () => { if (!pending?.state)
+$('recover').onclick = async () => { if (!pending?.state)
     return; try {
     const restored = normalize(pending.state);
-    if (!confirm('恢复此浏览器未同步的修改？若云端已更新，将保留修改并提示版本冲突。'))
+    if (!confirm('以此浏览器中的修改为准，同步到云端？'))
         return;
-    if (!('revision' in pending.state))
+    try {
+        const latest = normalize(await api('data'));
+        restored.revision = latest.revision;
+    } catch {
         restored.revision = state.revision;
+    }
     state = restored;
     $('recovery').hidden = true;
     pending = null;
+    notice('');
     try {
         localStorage.removeItem('qiuzhao-cloud-recovery-v3');
     }
@@ -434,11 +445,32 @@ catch (error) {
 } };
 $('backup-pending').onclick = () => { if (pending?.state)
     backup(pending.state); };
+function clearPendingDraft() {
+    pending = null;
+    dirty = false;
+    blocked = false;
+    $('recovery').hidden = true;
+    try {
+        localStorage.removeItem('qiuzhao-cloud-recovery-v3');
+        localStorage.removeItem(cacheKey());
+    }
+    catch { }
+}
+if ($('discard-pending')) $('discard-pending').onclick = async () => {
+    clearPendingDraft();
+    notice('');
+    try {
+        await connect();
+    }
+    catch (error) {
+        notice(error.message, true);
+    }
+};
 $('reload').onclick = async () => { if (saving) {
     notice('正在保存，请稍后重新载入。');
     return;
 } if (dirty && !confirm('重新载入会放弃当前未同步修改。建议先导出 JSON 备份，确定继续？'))
-    return; clearTimeout(timer); try {
+    return; clearTimeout(timer); clearPendingDraft(); try {
     await connect();
 }
 catch (error) {

@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import roleAliases from './role-aliases.ts';
 const canonicalRole = (role: string) => Object.hasOwn(roleAliases,role) ? (roleAliases as Record<string,string>)[role] : role;
 const canonicalRoles = (roles: string[]) => [...new Set(roles.map(canonicalRole))];
-type Bindings = { DB: D1Database; ASSETS: Fetcher };
+type AiBinding = { run: (model: string, input: Record<string, unknown>) => Promise<unknown> };
+type Bindings = { DB: D1Database; ASSETS: Fetcher; AI?: AiBinding };
 type Interview = { phase: 'pending' | 'scheduled' | 'feedback'; at: string; location: string };
 export type Company = {
     id: string; name: string; link: string; deadline: string; roles: string[]; dept: string;
@@ -105,8 +106,8 @@ async function write(db: D1Database, data: Snapshot, restoreHistory = false) {
             const a = before.interview || noInterview(), b = r.interview;
             if (a.phase!==b.phase || a.at!==b.at || a.location!==b.location) {
                 if (b.phase === 'feedback' && a.phase === 'scheduled' && a.at === b.at) addEvent(r,'complete','',JSON.stringify(b));
-                else if (b.phase === 'scheduled') addEvent(r,'schedule','',JSON.stringify({ ...b, previousAt:a.at!==b.at?a.at:'' }));
-                else if (a.phase==='scheduled' && a.at) addEvent(r,'cancel','',JSON.stringify(a));
+                else if (b.phase === 'scheduled' && (a.phase !== 'scheduled' || a.at !== b.at)) addEvent(r,'schedule','',JSON.stringify({ ...b, previousAt:a.at&&a.at!==b.at?a.at:'' }));
+                else if (a.phase==='scheduled' && a.at && b.phase==='pending') addEvent(r,'cancel','',JSON.stringify(a));
             }
         }
     }
@@ -121,16 +122,17 @@ async function write(db: D1Database, data: Snapshot, restoreHistory = false) {
         const fallback=events.filter(h=>!covered.has(h.companyId));
         events.splice(0,events.length,...fallback,...data.activity.map(h=>({...h,recordedAt:now})));
     }
-    const mergedNotes = new Map((previous.notes || []).map(n=>[n.id,n]));
-    const knownEvents = data.notes?.some(n=>!mergedNotes.has(n.id)) ? new Map([...(await history(db)),...events,...(restoreHistory?data.history||[]:[])].map(h=>[h.id,h])) : new Map<string,History>();
+    const previousNotes = new Map((previous.notes || []).map(n=>[n.id,n]));
+    const knownEvents = data.notes?.some(n=>!previousNotes.has(n.id)) ? new Map([...(await history(db)),...events,...(restoreHistory?data.history||[]:[])].map(h=>[h.id,h])) : new Map<string,History>();
     for (const n of data.notes || []) {
-        if (mergedNotes.has(n.id) && mergedNotes.get(n.id)!.companyId !== n.companyId) throw new Error('笔记编号与其他记录冲突');
-        const beforeNote=mergedNotes.get(n.id);
+        if (previousNotes.has(n.id) && previousNotes.get(n.id)!.companyId !== n.companyId) throw new Error('笔记编号与其他记录冲突');
+        const beforeNote=previousNotes.get(n.id);
         if(beforeNote && (beforeNote.eventId!==n.eventId || beforeNote.stage!==n.stage))throw new Error('笔记的面试关联不能更改');
-        if(!beforeNote && (!knownEvents.has(n.eventId) || knownEvents.get(n.eventId)!.companyId!==n.companyId || knownEvents.get(n.eventId)!.toStatus!==n.stage))throw new Error('笔记关联的面试历史无效');
-        mergedNotes.set(n.id,n);
+        const targetEvent=knownEvents.get(n.eventId);
+        if(!beforeNote && n.eventId!==n.companyId && (!targetEvent || targetEvent.companyId!==n.companyId || (['一面','二面','三面'].includes(targetEvent.toStatus) && targetEvent.toStatus!==n.stage)))throw new Error('笔记关联的面试历史无效');
     }
-    validateSnapshot({...data, companies:active, trash:[...archive.values()], notes:[...mergedNotes.values()]});
+    const nextNotes = data.notes === undefined ? (previous.notes || []) : data.notes;
+    validateSnapshot({...data, companies:active, trash:[...archive.values()], notes:nextNotes});
     const token = crypto.randomUUID(), gate = 'EXISTS (SELECT 1 FROM sync_meta WHERE id = 1 AND write_token = ?)';
     const batch = [
         db.prepare('UPDATE sync_meta SET revision = revision + 1, write_token = ? WHERE id = 1 AND revision = ?').bind(token,data.revision),
@@ -151,8 +153,11 @@ async function write(db: D1Database, data: Snapshot, restoreHistory = false) {
     batch.push(db.prepare(`INSERT INTO company_history(id,company_id,kind,from_status,to_status,detail,occurred_at,recorded_at)
         SELECT json_extract(value,'$.id'),json_extract(value,'$.companyId'),json_extract(value,'$.kind'),json_extract(value,'$.fromStatus'),json_extract(value,'$.toStatus'),json_extract(value,'$.detail'),json_extract(value,'$.at'),json_extract(value,'$.recordedAt') FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(events),token));
     for (const edit of data.historyEdits || []) batch.push(db.prepare(`UPDATE company_history SET occurred_at = ? WHERE id = ? AND kind IN ('baseline','created','status') AND ${gate}`).bind(edit.at,edit.id,token));
-    batch.push(db.prepare(`INSERT OR REPLACE INTO interview_notes(id,company_id,event_id,stage,meeting_at,title,body,category,updated_at)
-        SELECT json_extract(value,'$.id'),json_extract(value,'$.companyId'),json_extract(value,'$.eventId'),json_extract(value,'$.stage'),json_extract(value,'$.meetingAt'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.category'),json_extract(value,'$.updatedAt') FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(data.notes || []),token));
+    batch.push(
+        db.prepare(`DELETE FROM interview_notes WHERE ${gate}`).bind(token),
+        db.prepare(`INSERT INTO interview_notes(id,company_id,event_id,stage,meeting_at,title,body,category,updated_at)
+        SELECT json_extract(value,'$.id'),json_extract(value,'$.companyId'),json_extract(value,'$.eventId'),json_extract(value,'$.stage'),json_extract(value,'$.meetingAt'),json_extract(value,'$.title'),json_extract(value,'$.body'),json_extract(value,'$.category'),json_extract(value,'$.updatedAt') FROM json_each(?) WHERE ${gate}`).bind(JSON.stringify(nextNotes),token)
+    );
     const result = await db.batch(batch);
     return result[0].meta.changes > 0;
 }
@@ -199,6 +204,75 @@ app.delete('/api/roles/:name',async c => {
     data.companies.forEach(co=>{if(co.roles.includes(name)){co.roles=co.roles.filter(r=>r!==name);co.updatedAt=Math.max(Date.now(),(co.updatedAt||0)+1);}});
     if(!await write(c.env.DB,data))return c.json({error:'数据版本已变化'},409);
     return c.json({ok:true,revision:data.revision+1});
+});
+const NOISE_TOPICS = new Set(['要了解','了解','同时','如何','算法','流程','面试','复盘','面经','碎碎念','问题','回答','一面','二面','三面','算法面试','面试流程','未命名']);
+app.post('/api/ai/topics', async c => {
+    if (!c.env.AI) return c.json({ error: '当前环境未启用 Cloudflare Workers AI' }, 503);
+    let body: { notes?: { id: string; title?: string; body?: string; stage?: string }[]; existingTopics?: string[] } = {};
+    try { body = await c.req.json(); } catch {}
+    const sourceNotes = Array.isArray(body.notes) ? body.notes : (await read(c.env.DB)).notes || [];
+    const activeNotes = sourceNotes.filter(n => n && validId(n.id) && ((n.title || '').trim() || (n.body || '').trim())).slice(0, 40).map(n => ({
+        id: n.id,
+        stage: String(n.stage || '一面').slice(0, 10),
+        title: String(n.title || '').slice(0, 120),
+        body: String(n.body || '').slice(0, 1500),
+    }));
+    if (!activeNotes.length) return c.json({ topics: [], summary: '', model: 'none' });
+    const existing = Array.isArray(body.existingTopics) ? body.existingTopics.filter(t => typeof t === 'string' && t.trim().length >= 2 && t.trim().length <= 16).slice(0, 15) : [];
+    const systemPrompt = [
+        '你是专业的技术求职面试复盘分析专家。请分析用户的所有面试复盘笔记，跨场次宏观归纳出一段「全局复盘总览（summary）」和精炼的「高频考点词条（topics）」。',
+        '必须严格只输出合法的 JSON 对象，格式为：{"summary":"跨所有面试的宏观考察趋势、共性薄弱点与备考重点总览（60~140字，不要逐篇罗列，做全局提炼）","topics":[{"topic":"标准考点名（2~10字）","aliases":["原文中对应的技术词或短语"],"noteIds":["命中的笔记id"]}]}',
+        '严格遵守以下规则：',
+        '1. 深度同义归并：同一技术点或紧密关联的表达必须合并为一个标准 topic。例如将 "pipeline"、"组件如何交流"、"模块通信" 合并为 "Pipeline 组件通信"；将 "了解细节"、"项目熟悉程度" 合并为 "项目与底层细节"。',
+        '2. 严禁输出虚词、动词或宽泛废词：绝对禁止输出 "要了解"、"同时"、"如何"、"算法"、"流程"、"算法面试"、"面试流程"、"复盘"、"问题" 等无信息量的词。',
+        '3. 优先复用已有的标准考点词（若语义相近）。',
+        '4. aliases 必须提取自原文真实出现的关键词（如 "pipeline"、"组件如何交流"、"了解细节"），用于前端高亮原文。',
+        '5. 总共输出不超过 8 个最核心的考点词条。不要输出任何 Markdown 代码块或额外解释。'
+    ].join('\n');
+    const userPrompt = `${existing.length ? `已有标准考点词（语义相近请优先复用）：${JSON.stringify(existing)}\n` : ''}面试复盘记录：\n${JSON.stringify(activeNotes)}`;
+    const models = ['@cf/zai-org/glm-4.7-flash', '@cf/google/gemma-4-26b-a4b-it', '@cf/meta/llama-3.1-8b-instruct-fast'];
+    let rawText = '', usedModel = '';
+    for (const model of models) {
+        try {
+            const res = await c.env.AI.run(model, {
+                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+                temperature: 0.1,
+                max_completion_tokens: 1200,
+                max_tokens: 1200,
+                chat_template_kwargs: { enable_thinking: false },
+            }) as Record<string, unknown>;
+            const choice = Array.isArray(res?.choices) ? (res.choices[0] as Record<string, unknown>) : null;
+            const msg = choice?.message as Record<string, unknown> | undefined;
+            rawText = String(msg?.content ?? res?.response ?? '').trim();
+            if (rawText) { usedModel = model; break; }
+        } catch {}
+    }
+    if (!rawText) return c.json({ error: 'AI 提炼暂时不可用，已使用本地归并词条' }, 502);
+    const cleaned = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) return c.json({ error: 'AI 返回格式无效，已使用本地归并词条' }, 502);
+    let parsed: { summary?: unknown; topics?: unknown[] };
+    try { parsed = JSON.parse(match[0]); } catch { return c.json({ error: 'AI JSON 解析失败，已使用本地归并词条' }, 502); }
+    const noteMap = new Map(activeNotes.map(n => [n.id, `${n.title}\n${n.body}`.toLowerCase()]));
+    const topics: { word: string; aliases: string[]; noteIds: string[]; count: number; bold: boolean }[] = [];
+    const seen = new Set<string>();
+    for (const item of Array.isArray(parsed.topics) ? parsed.topics : []) {
+        const obj = item as Record<string, unknown>;
+        const word = String(obj?.topic || '').trim();
+        const key = word.toLowerCase();
+        if (word.length < 2 || word.length > 16 || NOISE_TOPICS.has(word) || NOISE_TOPICS.has(key) || seen.has(key)) continue;
+        const aliases = [...new Set([word, ...(Array.isArray(obj.aliases) ? obj.aliases : []).map(a => String(a || '').trim()).filter(a => a.length >= 2 && a.length <= 24 && !NOISE_TOPICS.has(a))])];
+        const noteIds = new Set<string>((Array.isArray(obj.noteIds) ? obj.noteIds : []).map(id => String(id)).filter(id => noteMap.has(id)));
+        for (const [id, text] of noteMap.entries()) {
+            if (aliases.some(a => text.includes(a.toLowerCase()))) noteIds.add(id);
+        }
+        if (!noteIds.size && activeNotes.length === 1) noteIds.add(activeNotes[0].id);
+        if (!noteIds.size) continue;
+        seen.add(key);
+        topics.push({ word, aliases, noteIds: [...noteIds], count: noteIds.size, bold: true });
+    }
+    const summary = typeof parsed.summary === 'string' ? parsed.summary.trim().slice(0, 240) : '';
+    return c.json({ topics: topics.slice(0, 10), summary, model: usedModel });
 });
 app.onError((e,c)=>{console.error(e);return c.json({error:'服务暂时不可用，请保留本地备份后重试'},500);});
 app.get('*',c=>c.env.ASSETS.fetch(c.req.raw));

@@ -7,7 +7,11 @@ const roles = ['机器人算法', '软件开发', 'AI Infra'];
 const companies = ['星河机器人', '远山科技', '青禾智能', '云帆科技', '新程汽车', '未央实验室'].map((name, i) => ({ ...company('demo-' + i, [roles[i % 3]]), name, status: ['未投', '一面', '已投', 'OC', '笔试', '未投'][i], deadline: i % 2 ? '' : new Date(Date.now() + (i + 1) * 86400000).toISOString().slice(0, 10), appliedAt: i ? '2026-10-08' : '', note: ['准备简历与作品集', '技术面 · 等待安排', '已通过内推投递', '新的旅程，即将开始', '完成在线笔试', '关注秋招开放时间'][i] }));
 const env = { DB, ASSETS: { async fetch(req) { const pathname = new URL(req.url).pathname; const files = { '/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js', '/app.css': 'app.css', '/editorial.css': 'editorial.css', '/workbench.js': 'workbench.js', '/interview-notes.js': 'interview-notes.js', '/role-picker.js': 'role-picker.js', '/workbench.css': 'workbench.css' }; const name = files[pathname]; if (!name)
             return new Response('Not found', { status: 404 }); return new Response(await readFile(new URL('../public/' + name, import.meta.url)), { headers: { 'Content-Type': name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html; charset=utf-8' } }); } } };
-await app.request('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: 0, roles, companies }) }, env);
+const notes = [
+    { id: 'demo-note-1', companyId: 'demo-1', eventId: 'demo-1', stage: '一面', meetingAt: '2026-11-16T03:00:00.000Z', title: '一面技术复盘', body: '算法面试流程通了也不行， **要了解pipeline 组件如何交流 ， 同时 了解细节**\n- 追问了实时性与多线程通信延迟控制\n- 需要补齐底层算子与内存布局细节', category: '复盘', updatedAt: Date.now() - 3600000 },
+    { id: 'demo-note-2', companyId: 'demo-3', eventId: 'demo-3', stage: '二面', meetingAt: '2026-11-12T06:00:00.000Z', title: '系统设计与项目深挖面经', body: '## 核心问题\n- 围绕 **Sim2Real 迁移误差与仿真评测闭环** 展开提问\n- 手撕了一道 C++ 滑动窗口，沟通思路很顺畅', category: '面经', updatedAt: Date.now() - 86400000 }
+];
+await app.request('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: 0, roles, companies, notes }) }, env);
 createServer(async (req, res) => { try {
     const chunks = [];
     for await (const chunk of req)

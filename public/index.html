@@ -4,14 +4,15 @@
 <body>
 <aside class="sidebar">
   <a class="brand" href="/" aria-label="投递首页"><span class="brandmark">↗</span><span>投递<small>CAREER WORKSPACE</small></span></a>
+  <nav aria-label="页面切换"><button type="button" class="nav active" data-page="workbench" aria-pressed="true">投递工作台 <b id="nav-company-count">0</b></button><button type="button" class="nav" data-page="reviews" aria-pressed="false">面试复盘 <b id="nav-note-count">0</b></button></nav>
   <div class="navlabel">我的工作台</div>
   <div class="side-note"><span class="sprout">✳</span><h3>每一步，都算数。</h3><p>把机会整理好，<br>把精力留给下一次出发。</p></div>
   <div class="side-bottom"><button id="theme" class="text-btn" hidden>◐ 切换深色</button><span class="edition">为下一站，做好准备。</span></div>
 </aside>
 <main>
-  <header class="topbar"><span>个人空间 <span class="slash">/</span> 求职工作台</span><div class="header-actions"><div class="saveflag" id="saveflag" role="status"><i></i><span id="savetext">等待连接</span></div></div></header>
+  <header class="topbar"><span id="page-breadcrumb">个人空间 <span class="slash">/</span> 求职工作台</span><div class="header-actions"><div class="saveflag" id="saveflag" role="status"><i></i><span id="savetext">等待连接</span></div></div></header>
   <div class="content">
-    <div id="notice" class="notice" role="status" hidden></div><div class="recovery" id="recovery" hidden><span>此浏览器有尚未同步的修改。</span><button class="btn" id="recover">恢复修改</button><button class="btn" id="backup-pending">备份未同步数据</button></div>
+    <div id="notice" class="notice" role="status" hidden></div><div class="recovery" id="recovery" hidden><span>此浏览器有尚未同步的修改。</span><button class="btn primary" id="recover">保留本机修改并同步</button><button class="btn" id="discard-pending">用云端最新数据</button><button class="btn" id="backup-pending">备份未同步数据</button></div>
     <section class="stats" id="stats" aria-label="投递统计"></section>
     <section class="agenda-strip"><h2>近期安排</h2><div id="agenda"></div></section><section class="overview"><div class="progress-panel"><div class="section-title"><h2>你的求职进度</h2><span>每一份投递，都是新的可能</span></div><div id="pipeline" class="pipeline"></div></div><div class="deadline-panel"><div class="section-title"><h2>近期截止</h2><span class="tag">未来 7 天</span></div><div id="upcoming"></div></div></section>
     <section class="records"><div class="records-head"><div><h2 id="view-title">全部投递 <span id="resultcount">0</span></h2><p>机会与进展，在这里有序发生。</p></div><div class="records-actions"><div class="add-actions"><button class="btn primary" id="add">＋ 新增投递</button><details class="data-menu add-menu"><summary class="btn primary" aria-label="更多新增方式">▾</summary><div><button id="bulk-open">批量录入公司</button></div></details></div><details class="data-menu"><summary class="btn">数据管理 ↓</summary><div><button id="trash-open">回收站</button><button id="expcsv">导出 CSV</button><button id="expjson">备份 JSON</button><button id="impjson">恢复备份</button><button id="reload">重新载入云端</button><button id="local-mode">仅在此浏览器使用</button></div></details></div></div>
@@ -19,7 +20,7 @@
       <div class="toolbar"><label class="search"><span>⌕</span><input id="q" type="search" aria-label="搜索投递" placeholder="搜索公司、岗位、部门或备注…"></label><label class="star-filter"><input id="starfilter" type="checkbox">仅看星标</label><label class="select-wrap"><span>状态</span><select id="statusfilter" aria-label="按状态筛选"><option value="">全部状态</option></select></label><label class="select-wrap"><select id="sort" aria-label="排序"><option value="added">记录顺序：新增在前</option><option value="updated">最近编辑在前</option><option value="applied">投递时间：最新在前</option><option value="deadline">截止日期</option><option value="name">公司名称</option><option value="status">投递进度</option></select></label></div>
       <div class="tablewrap"><table><thead><tr><th>公司 / 链接</th><th>岗位 / 部门</th><th>投递进度</th><th>下一场面试</th><th>截止 / 投递日期</th><th>备注</th><th><span class="sr-only">操作</span></th></tr></thead><tbody id="rows"></tbody></table><div class="empty" id="empty" hidden><span>↗</span><h3>下一份机会，从这里开始</h3><p>记下感兴趣的公司，让每一次投递都有迹可循。</p><button class="btn primary" id="empty-add">＋ 新增投递</button></div></div>
       <footer class="tablefoot"><span id="footcount">共 0 条记录</span><span>直接填写 · 自动保存</span></footer>
-    </section><footer class="pagefoot"><span>投递 · 为理想的下一站</span><span id="storage-label">你的个人求职工作台</span></footer>
+    </section><section class="reviews-page" id="reviews-page" hidden></section><footer class="pagefoot"><span>投递 · 为理想的下一站</span><span id="storage-label">你的个人求职工作台</span></footer>
   </div>
 </main>
 

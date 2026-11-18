@@ -37,7 +37,7 @@ function historyTitle(h) {
     let info;try{info=JSON.parse(h.detail);}catch{info={};}
     if(h.kind==='complete') return `${h.toStatus}已完成 · 等待反馈`;
     if(h.kind==='cancel') return `取消${h.toStatus}安排 · 原定 ${formatTime(info.at)}`;
-    return info.previousAt ? `${h.toStatus}改期：${formatTime(info.previousAt)} → ${formatTime(info.at)}` : `安排${h.toStatus}时间：${formatTime(info.at)}`;
+    return info.previousAt && info.previousAt !== info.at ? `${h.toStatus}改期：${formatTime(info.previousAt)} → ${formatTime(info.at)}` : `安排${h.toStatus}时间：${formatTime(info.at)}`;
 }
 function historyMarkup(id) {
     const list=(state.history || []).filter(h=>h.companyId===id).sort((a,b)=>b.at-a.at || b.recordedAt-a.recordedAt);
@@ -124,6 +124,7 @@ function renderBulkPreview() {
 function newCompany(name='') {return {id:crypto.randomUUID(),name,link:'',deadline:'',appliedAt:'',roles:[],dept:'',status:'未投',note:'',starred:false,deletedAt:0,interview:emptyInterview()};}
 function resetFilters() {view='all';$('q').value='';$('statusfilter').value='';$('starfilter').checked=false;$('sort').value='added';document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view==='all'));}
 async function openCompany(id) {
+    if(typeof switchPage==='function')switchPage('workbench',false);
     openedCompany=id;resetFilters();render();
     document.querySelector(`[data-row="${id}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'});
     await loadHistory(id);
@@ -155,8 +156,11 @@ function initWorkbenchFeatures() {
             const co=state.companies.find(c=>c.id===d.saveMeeting), date=document.querySelector(`[data-meeting-date="${co.id}"]`), time=document.querySelector(`[data-meeting-time="${co.id}"]`), location=document.querySelector(`[data-meeting-location="${co.id}"]`);
             if(!date.reportValidity()||!time.reportValidity())return;
             const at=new Date(date.value+'T'+time.value);if(!Number.isFinite(at.getTime()))return;
-            const next={phase:'scheduled',at:at.toISOString(),location:location.value.trim()};if(JSON.stringify(next)===JSON.stringify(co.interview))return;
-            addLocalHistory(co,'schedule','',JSON.stringify({...next,previousAt:co.interview?.at||''}));co.interview=next;touchCompany(co);changed();featureToast('面试安排已保存，近期安排同步更新');
+            const iso=at.toISOString(), loc=location.value.trim(), prev=co.interview||emptyInterview();
+            const sameTime=prev.at===iso && prev.phase!=='pending';
+            const next={phase:sameTime?prev.phase:'scheduled',at:iso,location:loc};if(JSON.stringify(next)===JSON.stringify(prev))return;
+            if(!sameTime)addLocalHistory(co,'schedule','',JSON.stringify({...next,previousAt:prev.at&&prev.at!==iso?prev.at:''}));
+            co.interview=next;touchCompany(co);changed();featureToast(sameTime?'会议地点已保存':'面试安排已保存，近期安排同步更新');
         }
         if(d.completeMeeting){const co=state.companies.find(c=>c.id===d.completeMeeting);co.interview.phase='feedback';addLocalHistory(co,'complete','',JSON.stringify(co.interview));touchCompany(co);changed();}
         if(d.cancelMeeting){const co=state.companies.find(c=>c.id===d.cancelMeeting);addLocalHistory(co,'cancel','',JSON.stringify(co.interview));co.interview=emptyInterview();touchCompany(co);changed();}

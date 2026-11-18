@@ -51,7 +51,7 @@ main{margin:0}
 .upcoming-item button{font-size:11px}
 .upcoming-item small{font-size:10px;color:#ae714a}
 .upcoming-item i{background:#c7784b}
-.records{border:0;border-radius:0;background:transparent;border-top:1px solid #333931}
+.records{border:0;border-radius:0;background:transparent}
 .records-head{padding:22px 0 17px}
 .records h2{font-size:15px;font-weight:600}
 .records h2 span{background:#e9ecdf;color:#6e795f;border-radius:2px}

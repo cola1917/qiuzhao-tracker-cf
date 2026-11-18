@@ -1,45 +1,118 @@
-# 投递 · 求职工作台
+<div align="center">
 
-把公司、岗位、投递进度和面试安排放在一张表里。直接填写、自动保存，给每一步进展留下一条时间线。
+<img src="docs/images/banner.svg" alt="投递 · 求职工作台 Banner" width="100%" />
 
-基于 **Cloudflare Workers + Hono + D1**，使用原生 HTML / CSS / JavaScript，适合个人自用和自行部署。
+<br />
 
-![投递工作台，图中为虚构示例数据](docs/images/workbench.webp)
+# 投递 · 求职工作台 (Qiuzhao Tracker)
 
-## 能做什么
+**把公司、岗位、投递时间线与 AI 面试复盘放在同一间编辑室里。**<br />
+直接填写、自动保存、阶段与约面解耦，让秋招与日常求职的每一步进展都有迹可循。
 
-| 功能 | 使用方式 |
-| --- | --- |
-| 表格直接填写 | 新增即出现空白行，填写公司、岗位、部门、链接、日期和备注，自动保存 |
-| 批量录入公司 | 每行一个公司名，一次最多 100 家；检查输入重复、已有记录和回收站同名记录 |
-| 投递进度 | 支持未投、已投、测评、笔试、一面、二面、三面、OC、已挂 |
-| 独立面试安排 | 先进入下一轮，再补充面试日期、时间、会议链接或地点；支持改期与标记完成 |
-| 状态时间线 | 记录状态变更、面试安排和完成；可修正实际反馈时间，保留系统记录时间 |
-| 近期安排 | 首页展示已确定的面试安排和待安排面试；已过时间不会自动判定面试完成 |
-| 面试笔记 | 从面试历史旁快捷创建面经、复盘或碎碎念，支持 Markdown 工具栏、预览与自动保存；关联具体面试，保留改期与取消前的记录 |
-| 星标与筛选 | 重点公司高亮，支持仅看星标；可按状态、关键词和排序查找 |
-| 回收站 | 删除后可立即撤销，也可从回收站恢复，保留星标、面试安排与历史 |
-| 云端与本地保存 | 云端同步、断网暂存、失败重试；也可以选择只在当前浏览器使用 |
-| 备份与导出 | 完整 JSON 备份恢复、CSV 导出；兼容早期 JSON 备份 |
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Database D1](https://img.shields.io/badge/Cloudflare-D1_SQLite-F38020?style=flat-square&logo=sqlite&logoColor=white)](https://developers.cloudflare.com/d1/)
+[![Workers AI](https://img.shields.io/badge/Workers_AI-GLM--4.7--Flash-c55333?style=flat-square&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers-ai/)
+[![Hono](https://img.shields.io/badge/Framework-Hono_v4-E36002?style=flat-square&logo=hono&logoColor=white)](https://hono.dev/)
+[![Zero Dependencies UI](https://img.shields.io/badge/Frontend-Vanilla_ES_&_Editorial_CSS-202820?style=flat-square)](#项目结构)
+[![Zero Trust](https://img.shields.io/badge/Auth-Cloudflare_Access-285c49?style=flat-square&logo=cloudflare&logoColor=white)](#3-配置访问保护并发布)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](#先在本机试用)
 
-默认按**固定记录顺序，新增在前**展示，编辑、保存和刷新均不改变已有行的位置；需要时可选择「最近编辑在前」。顶部统计卡片直接筛选全部、待投、进行中和 Offer，不再重复设置导航入口。
+[**✦ 核心特性**](#-核心特性) · [**🖼 界面预览**](#-界面预览) · [**🔄 进展与复盘工作流**](#-阶段进展与面试复盘工作流) · [**🚀 本机极速试用**](#-先在本机试用) · [**☁️ 部署到 Cloudflare**](#️-部署到自己的-cloudflare) · [**🔌 API 与数据约定**](#-api-与数据约定)
 
-### 一面通过了，但二面还没约？
+</div>
 
-**阶段反馈和面试日期分别记录：**
+---
 
-1. 收到一面通过反馈，把状态改成「二面」，显示「待安排」。
-2. 约好时间后，填写二面的日期、时间和会议地点。
-3. 面试结束后，点击「标记已完成」，显示「待反馈」。
-4. 收到下一轮反馈，再更新阶段；原来的面试记录保留在时间线中。
+## ✦ 核心特性
 
-快速连续操作和断网期间的进展会排队保存，避免只留下最后一次状态。
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>📋 表格直填与智能批量录入</h3>
+      <ul>
+        <li><b>零弹窗行内编辑</b>：新增即出现空白行，直接填写公司、岗位、部门、链接、截止/投递日期与备注，500ms 防抖自动保存。</li>
+        <li><b>百企批量粘贴</b>：一次最多粘贴 100 家公司，自动去重并识别「已在列表中」或「已在回收站中」的同名记录。</li>
+        <li><b>同义岗位自动归并</b>：内置岗位语义别名映射（<code>src/role-aliases.ts</code>），搜索与常用岗位分组展示，告别重复冗余标签。</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>◷ 阶段反馈与面试安排解耦</h3>
+      <ul>
+        <li><b>9 大标准进度</b>：支持 <code>未投 → 已投 → 测评 → 笔试 → 一面 → 二面 → 三面 → OC / 已挂</code> 全周期流转。</li>
+        <li><b>三态约面流转</b>：进入面试轮次后独立流转 <code>待安排 → 已安排（整点时间 + 会议链接） → 待反馈</code>。</li>
+        <li><b>可追溯进展时间线</b>：完整记录每一次阶段推进、约面、改期、取消与完成，支持单独修正实际收到反馈的时间。</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🧠 独立面试复盘与 AI 考点归并</h3>
+      <ul>
+        <li><b>双视图无缝切换</b>：在「投递工作台」随手记下复盘，在独立「面试复盘」视图按时间轴纵向回顾成长历程。</li>
+        <li><b>CF Workers AI 全局总览</b>：内置绑定 <code>@cf/zai-org/glm-4.7-flash</code>（免配外部 API Key），跨场次提炼全局复盘总览与备考建议。</li>
+        <li><b>同义考点聚类与联动高亮</b>：自动将相近表达（如 <code>pipeline</code> / <code>组件如何交流</code>）归并为标准考点胶囊，点击即可跨公司筛选并在正文中高亮原文。</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🛡️ 乐观锁防冲突与双模存储</h3>
+      <ul>
+        <li><b>多端版本保护</b>：基于 <code>revision</code> 与 D1 事务门控（<code>write_token</code>）原子写入，防止多设备静默覆盖。</li>
+        <li><b>断网暂存与一键恢复</b>：离线或版本冲突时自动保存在本地草稿，支持一键「保留本机修改并同步」或切换「用云端最新数据」。</li>
+        <li><b>完整备份与回收站</b>：支持软删除撤销、回收站恢复（保留星标与历史）、完整 JSON 备份导入/导出及 CSV 导出。</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-![行内进展时间线，图中为虚构示例数据](docs/images/timeline.webp)
+---
 
-## 先在本机试用
+## 🖼 界面预览
 
-需要 **Node.js 24 或更高版本**。
+### 1. 投递工作台主视图（Editorial UI）
+
+采用暖白（`#f8f7f3`）与陶土橙（`#c55333`）编辑室风格配色。默认按**固定记录顺序（新增在前）**展示，编辑、加星标与刷新均不打乱既有行位置；顶部统计卡片直接筛选全部、待投、进行中与 Offer。
+
+<div align="center">
+  <img src="docs/images/workbench.webp" alt="投递工作台主视图，图中为虚构示例数据" width="100%" />
+</div>
+
+### 2. 独立「面试复盘与历程」视图（AI 全局总览 + 高频考点筛选）
+
+汇总所有公司的面经、复盘与碎碎念。顶部由 **本地语义聚类 + Cloudflare Workers AI** 生成跨场次全局复盘总览与高频考点词条，点击任意考点即可过滤下方复盘卡片并高亮命中的原文片段，支持原地展开 Markdown 编辑器或删除记录。
+
+<div align="center">
+  <img src="docs/images/reviews.svg" alt="面试复盘与历程独立视图，图中为虚构示例数据" width="100%" />
+</div>
+
+### 3. 行内进展时间线与独立约面面板
+
+点击任意公司右侧的 `历史 ⌄`，即可在行内展开该公司的完整进展时间线、补充或修改面试时间与飞书/腾讯会议链接，并直接关联具体轮次撰写面试复盘。
+
+<div align="center">
+  <img src="docs/images/timeline.webp" alt="行内进展时间线，图中为虚构示例数据" width="82%" />
+</div>
+
+---
+
+## 🔄 阶段进展与面试复盘工作流
+
+> **痛点场景：一面通过了，但二面时间还没约定？**  
+> 在传统表格里，你要么不敢改状态，要么改了状态却丢了一面时间和面经。本项目将**「阶段反馈」**、**「面试排期」**与**「面试复盘」**三者彻底解耦：
+
+```mermaid
+flowchart LR
+    A["收到一面通过反馈<br/>状态改为「二面」"] --> B["自动显示：二面 · 待安排<br/>进入首页「近期安排」提醒"]
+    B --> C["HR 确定时间后<br/>填写日期、整点时间与会议链接"]
+    C --> D["面试结束点击「标记已完成」<br/>状态变为：二面 · 待反馈"]
+    D --> E["点击「写面试记录」<br/>自动关联本轮次沉淀复盘"]
+    E --> F["「面试复盘」独立视图<br/>CF AI 跨场次归并高频考点"]
+```
+
+---
+
+## 🚀 先在本机试用
+
+需要 **Node.js 24 或更高版本**（使用 Node.js 内置 `node:sqlite` 运行本地内存数据库，零外部依赖）。
 
 ```sh
 git clone https://github.com/cola1917/qiuzhao-tracker-cf.git
@@ -48,130 +121,149 @@ npm ci
 npm run preview
 ```
 
-打开 <http://127.0.0.1:8790>。预览使用独立的内存 SQLite 和虚构公司记录，不连接线上 D1，重启后恢复初始示例数据。
+浏览器打开 **<http://127.0.0.1:8790>** 即可体验：
+- 预览环境使用**独立的内存 SQLite** 与虚构示例公司/复盘记录，不连接线上 D1，重启后自动恢复初始示例状态。
+- 支持窄屏自适应与移动端横向滑动浏览。
 
-页面采用暖白和陶土橙配色，支持窄屏布局；表格列较多时可以左右滑动。
+---
 
-## 部署到自己的 Cloudflare
+## ☁️ 部署到自己的 Cloudflare
 
-### 1. 创建数据库
+本应用基于 **Cloudflare Workers + D1 + Workers AI + Static Assets**，个人日常使用在 Cloudflare Free 计划免费额度内即可零成本运行。
+
+### 1. 登录并创建 D1 数据库
 
 ```sh
 npx wrangler login
 npm run db:create
 ```
 
-把创建结果中的数据库名称和 ID 填入 `wrangler.toml`：
+将终端输出的数据库名称与 `database_id` 填入 `wrangler.toml`：
 
 ```toml
 [[d1_databases]]
 binding = "DB"
 database_name = "qiuzhao-tracker-db"
 database_id = "替换为你自己的数据库 ID"
+
+[ai]
+binding = "AI"
 ```
 
-仓库中的数据库 ID 属于原项目，请使用你自己创建的数据库。若更改数据库名称，也要同步修改 `package.json` 和 GitHub Actions 中的数据库命令。
+> **提示**：仓库中的 `database_id` 属于原项目，部署前请替换为你自己创建的 D1 数据库 ID。若修改了 `database_name`，请同步更新 `package.json` 与 `.github/workflows/` 中的迁移命令。  
+> `migrations/0002_import_data.sql` 包含早期初始化数据，全新个人部署前可按需清空或调整其中的初始公司记录。
 
-> `0002_import_data.sql` 包含早期初始化数据。新部署前请检查是否保留这些初始记录；本机演示使用的虚构数据由预览脚本单独提供。
-
-### 2. 初始化与本地开发
+### 2. 本地开发与数据库迁移
 
 ```sh
 npm run db:migrate:local
 npm run dev
 ```
 
-Wrangler 会显示本机访问地址。浏览器本地模式可在「数据管理 → 仅在此浏览器使用」中开启，其数据只保存在当前浏览器。
+Wrangler 会启动本机开发服务器。若不希望连接云端，也可随时在页面右上角「**数据管理 → 仅在此浏览器使用**」开启纯本地浏览器存储模式。
 
-### 3. 配置访问保护并发布
+### 3. 配置访问保护并发布上线
 
-本应用沿用 **Cloudflare Access / Zero Trust** 验证，不额外设置应用访问密钥。部署时需要自行配置访问策略，覆盖站点及 `/api/*` 路由。
+本项目采用 **Cloudflare Access (Zero Trust)** 在边缘层统一验证身份，不在前端代码或本地存储中保存应用密码。请在 Cloudflare Zero Trust 控制台中为你的域名（含站点根路径及 `/api/*`）配置访问策略（如个人邮箱 OTP 或 GitHub OAuth）：
 
 ```sh
 npm run db:migrate:remote
 npm run deploy
 ```
 
-### 4. 使用 GitHub Actions 自动部署
+### 4. 配置 GitHub Actions 自动部署（可选）
 
-在仓库 Settings → Secrets and variables → Actions 中添加：
+在 GitHub 仓库 `Settings → Secrets and variables → Actions` 中添加以下两个 Secret：
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
-推送到 `main` 后，工作流依次执行安装依赖、类型检查、回归测试、构建、远程数据库迁移和 Worker 发布。部署串行执行，避免并行迁移。
+推送到 `main` 分支后，工作流会自动串行执行：`npm ci` → `typecheck` → `51 项回归测试` → `build 预检` → `D1 远程迁移` → `Worker 发布`。
 
-不需要配置应用 `ACCESS_TOKEN`。
+<details>
+<summary><b>📦 已有项目升级与数据库迁移说明（点击展开）</b></summary>
 
-## 已有项目升级
+<br />
 
-升级前先在「数据管理 → 备份 JSON」中导出完整备份，再应用迁移并发布代码。
+升级前建议先在页面右上角「**数据管理 → 备份 JSON**」导出完整备份，随后执行 `npm run db:migrate:remote && npm run deploy`。所有新特性均沿用现有 D1 数据库，无需删库重建：
 
-| 迁移 | 用途 |
+| 迁移文件 | 用途说明 |
 | --- | --- |
-| `0001_init.sql` | 基础表结构 |
-| `0002_import_data.sql` | 早期初始化数据，不覆盖已有记录 |
-| `0003_sync.sql` | 记录排序、同步版本与写入标记 |
-| `0004_workbench.sql` | 星标、回收站、面试安排与独立历史表 |
-| `0005_interview_notes.sql` | 独立面试笔记表，沿用当前 D1 |
-| `0006_merge_role_names.sql` | 同义岗位归并，同时更新投递与回收站的岗位关联 |
+| `0001_init.sql` | 基础 `companies` 与 `roles` 表结构 |
+| `0002_import_data.sql` | 早期初始化数据（使用 `INSERT OR IGNORE`，绝不覆盖已有编辑记录） |
+| `0003_sync.sql` | 记录固定排序（`position`）、乐观锁版本号（`revision`）与事务写入令牌（`write_token`） |
+| `0004_workbench.sql` | 星标（`starred`）、回收站（`deleted_at`）、面试安排（`interview`）与独立历史表（`company_history`） |
+| `0005_interview_notes.sql` | 独立面试笔记表（`interview_notes`），支持绑定具体面试事件锚点 |
+| `0006_merge_role_names.sql` | 同义岗位标准名称归并，自动迁移正常投递与回收站中的岗位关联 |
 
-新功能沿用现有 D1，无需新建库。历史功能启用时，只以当时的状态建立起点，不推测过去的面试日期或反馈过程。
+</details>
 
-## 保存、冲突与备份
+---
 
-- 公司和岗位在同一事务中保存，使用 `revision` 防止多设备互相覆盖。
-- 遇到版本冲突时，保留本机未同步修改；先导出备份，再重新载入并按需恢复。
-- 状态操作与记录在同一事务中保存，成功后只移除本次已确认的待同步操作。
-- 删除移入回收站，不自动清空；恢复时保留投递信息与历史。
-- 云端完整 JSON 备份包含正常投递、回收站、星标、面试安排、全部历史和面试笔记。
-- 恢复备份会替换当前正常列表；被替换的原记录保留在回收站。
-- 本地模式只使用当前浏览器存储，建议定期导出 JSON。
-
-这是一套共享数据，**没有按用户隔离的独立空间**。适合个人使用或明确共享同一套数据的场景。浏览器备份未加密。
-
-## 验证
+## 🧪 测试与构建验证
 
 ```sh
-npm run check   # TypeScript + 独立 SQLite 回归测试
-npm run build   # Wrangler dry-run，不发布
+npm run check   # 执行 TypeScript 类型检查 (tsc --noEmit) + 51 项独立 SQLite 与前端回归测试
+npm run build   # 执行 Wrangler 生产打包预检 (--dry-run)，输出至 dist/
 ```
 
-测试不使用真实线上数据库，覆盖版本冲突、事务回滚、快速连续操作、时间线、面试安排、回收站、备份与批量录入。
+测试套件完全基于隔离的内存 SQLite 与 VM 沙箱运行，不触碰线上数据库，完整覆盖：
+- 乐观锁版本冲突（`409`）与离线草稿恢复
+- D1 批量事务失败自动回滚（`BEGIN ... ROLLBACK`）
+- 快速连续切换状态与约面的操作队列（`activity`）保真
+- 面试改期、取消、完成与复盘笔记锚点稳定性
+- 面试复盘删除同步、本地语义考点聚类与 Cloudflare Workers AI（`@cf/zai-org/glm-4.7-flash`）接口规约
 
-## API 与数据约定
+---
 
-API 使用现有 Cloudflare Access 会话，响应设置 `Cache-Control: no-store`。
+## 🔌 API 与数据约定
 
-| 接口 | 用途 |
-| --- | --- |
-| `GET /api/data` | 返回 v3 快照：`revision`、`roles`、`companies`、`trash`、`notes` |
-| `PUT /api/data` | 按当前版本保存快照；版本过期返回 `409` |
-| `GET /api/history/:id` | 按需加载单条投递的历史 |
-| `GET /api/backup` | 获取包含全部历史的完整备份 |
-| `PUT /api/backup` | 显式恢复完整备份 |
-| `GET /api/roles` | 获取岗位与版本 |
-| `POST /api/roles` | 以 `{ name, revision }` 新增岗位 |
-| `DELETE /api/roles/:name` | 携带 `If-Match: <revision>` 移除岗位及当前投递关联 |
+所有 `/api/*` 路由均设置 `Cache-Control: no-store`，复用 Cloudflare Access 会话。
 
-`updatedAt` 为记录编辑时间的毫秒时间戳，`starred` 为星标，`deletedAt` 为删除时间。`interview` 包含 `phase`（`pending` / `scheduled` / `feedback`）、UTC ISO 格式的 `at` 和 `location`；页面按浏览器本地时区展示和填写。
+| 接口路由 | 方法 | 用途说明 |
+| --- | --- | --- |
+| `/api/data` | `GET` | 获取 v3 工作台快照：`revision`、`roles`、`roleAliases`、`companies`、`trash`、`notes` |
+| `/api/data` | `PUT` | 基于当前 `revision` 原子保存快照、待同步操作队列（`activity`）与笔记变更；版本过期返回 `409` |
+| `/api/history/:id` | `GET` | 按需加载指定公司的完整进展时间线（`company_history`） |
+| `/api/ai/topics` | `POST` | 调用 Cloudflare Workers AI（`@cf/zai-org/glm-4.7-flash`）生成跨篇全局复盘总览与同义归并考点 |
+| `/api/backup` | `GET` | 导出包含全部公司、回收站、面试笔记与完整时间线历史的 JSON 备份 |
+| `/api/backup` | `PUT` | 显式恢复完整备份（被替换的原有记录自动归档至回收站，不丢失数据） |
+| `/api/roles` | `GET` / `POST` | 查询岗位列表，或携带 `{ name, revision }` 新增岗位 |
+| `/api/roles/:name` | `DELETE` | 携带 `If-Match: <revision>` 原子移除指定岗位并清理当前投递关联 |
 
-`activity` 保存待同步的进展操作；`historyEdits` 修正阶段事件的实际反馈时间。普通自动保存不传输全部历史。`notes` 保存笔记的稳定 `eventId` 关联、轮次、记录时的面试时间、标题、Markdown 正文、类型及编辑时间。旧客户端遗漏笔记字段时，服务端保留已有笔记。
+<details>
+<summary><b>📐 数据配额与安全边界（点击展开）</b></summary>
 
-最多 2000 条正常投递、2000 条回收站记录、200 个岗位；投递快照上限 1 MB（UTF-8）。笔记最多 1000 篇，每篇标题 200 字、正文 20000 字，笔记合计上限 1 MB。完整备份中的历史最多 20000 条、8 MB。
+<br />
 
-## 项目结构
+- **容量上限**：最多保存 `2,000` 条正常投递、`2,000` 条回收站记录、`200` 个岗位（单次快照上限 `1 MB` UTF-8）。
+- **面试笔记上限**：最多保存 `1,000` 篇面试复盘笔记（单篇标题 `200` 字、Markdown 正文 `20,000` 字，合计上限 `1 MB`）。
+- **历史备份上限**：完整备份中的时间线历史最多 `20,000` 条（上限 `8 MB`）。
+- **XSS 与注入防护**：前后端双重校验 ID、ISO 日期与枚举字段；Markdown 预览先转义全部 HTML 实体，仅允许 `http(s)://` 协议链接；CSV 导出自动转义公式注入前缀（`=`, `+`, `-`, `@`）。
+
+</details>
+
+---
+
+## 📂 项目结构
 
 ```text
-public/                  页面、样式与交互
-src/worker.ts            Hono API、数据校验、同步与历史事务
-migrations/              D1 数据迁移
-tests/                   独立 SQLite 与前端逻辑回归测试
-scripts/preview.mjs       隔离的本机示例预览
-.github/workflows/        自动验证与部署
-docs/images/             使用虚构数据的功能截图
+qiuzhao-tracker-cf/
+├── public/                  # 前端静态资源（原生 HTML / Editorial CSS / ES 脚本）
+│   ├── index.html           # 单页双视图骨架（投递工作台 + 面试复盘）
+│   ├── app.js               # 核心状态管理、乐观锁同步、搜索筛选与导入导出
+│   ├── workbench.js         # 约面流转、进展时间线、批量录入与回收站
+│   ├── interview-notes.js   # 面试复盘编辑器、独立复盘时间轴、本地与 CF AI 考点聚类
+│   ├── role-picker.js       # 岗位分组搜索选择器与同义词解析
+│   ├── app.css              # 基础组件样式与深浅色变量
+│   ├── editorial.css        # 暖白与陶土橙编辑室主题样式
+│   └── workbench.css        # 时间线、约面表单与独立复盘视图样式
+├── src/
+│   ├── worker.ts            # Hono API、数据快照校验、D1 事务同步与 Workers AI 路由
+│   └── role-aliases.ts      # 岗位同义名称归并映射表
+├── migrations/              # D1 SQLite 数据库增量迁移脚本 (0001 ~ 0006)
+├── tests/                   # Node.js 测试套件（API、工作台事务与前端沙箱回归测试）
+├── scripts/
+│   └── preview.mjs          # 零配置的本地内存 SQLite 隔离预览服务
+└── docs/images/             # README 横幅与功能预览图
 ```
-
-技术参考：[Cloudflare D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/)、[Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/)、[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/)。
-
-岗位同义名称映射维护在 `src/role-aliases.ts`。服务端保存旧备份或旧客户端数据时也会归并；新建岗位优先复用标准名称。具体职责不同的岗位（例如三维重建算法、测试开发、Infra）保持区分。

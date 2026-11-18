@@ -143,6 +143,40 @@ test('note associations cannot target another company or be changed on edit',asy
  data=await load(env);data.notes[0].eventId='forged';assert.equal((await save(env,data)).status,400);
 });
 
+test('explicitly deleting interview notes removes them from D1 while updating only meeting location avoids fake reschedule history',async()=>{
+ const env=environment();await save(env,{revision:0,roles:[],companies:[{...company('a'),status:'一面',interview:{phase:'scheduled',at:'2026-11-16T03:00:00.000Z',location:''}}]});
+ let data=await load(env);const event=(await history(env,'a'))[0];
+ const n1={id:'n1',companyId:'a',eventId:event.id,stage:'一面',meetingAt:'2026-11-16T03:00:00.000Z',title:'一面复盘',body:'**重点**',category:'复盘',updatedAt:Date.now()};
+ const n2={id:'n2',companyId:'a',eventId:event.id,stage:'一面',meetingAt:'2026-11-16T03:00:00.000Z',title:'',body:'',category:'复盘',updatedAt:Date.now()};
+ data.notes=[n1,n2];assert.equal((await save(env,data)).status,200);
+ data=await load(env);assert.equal(data.notes.length,2);
+ data.notes=[n1];data.companies[0].interview.location='https://example.com/meeting/room-1';
+ assert.equal((await save(env,data)).status,200);
+ data=await load(env);assert.deepEqual(data.notes,[n1]);
+ const events=await history(env,'a');
+ assert.equal(events.filter(e=>e.kind==='schedule').length,1);
+});
+
+test('Cloudflare Workers AI topic endpoint consolidates synonymous keywords and strips noise words',async()=>{
+ const env={...environment(),AI:{async run(model){
+  return {choices:[{message:{content:JSON.stringify({
+   summary:'一面需重点补强 Pipeline 组件间数据通信与底层实现细节',
+   topics:[
+    {topic:'Pipeline 组件通信',aliases:['pipeline','组件如何交流'],noteIds:['n1']},
+    {topic:'底层实现细节',aliases:['了解细节'],noteIds:['n1']},
+    {topic:'要了解',aliases:['要了解'],noteIds:['n1']}
+   ]
+  })}}],model};
+ }}};
+ const res=await request(env,'/api/ai/topics','POST',{notes:[{id:'n1',stage:'一面',title:'一面复盘',body:'算法面试流程通了也不行， **要了解pipeline  组件如何交流 ， 同时 了解细节**'}]});
+ assert.equal(res.status,200);
+ const body=await res.json();
+ assert.equal(body.model,'@cf/zai-org/glm-4.7-flash');
+ assert.deepEqual(body.topics.map(t=>t.word),['Pipeline 组件通信','底层实现细节']);
+ assert.deepEqual(body.topics[0].noteIds,['n1']);
+ assert.ok(body.summary.includes('Pipeline'));
+});
+
 
 test('role consolidation migrates active and archived associations, deduplicates and preserves record metadata',async()=>{
  const env=environment();await save(env,{revision:0,roles:['具身智能算法','具身智能算法工程师','数据科学工程','数据科学'],companies:[{...company('a',['具身智能算法','具身智能算法工程师']),updatedAt:1234}],trash:[{...company('b',['数据科学工程','数据科学']),deletedAt:5678,updatedAt:3456}]});

@@ -178,3 +178,25 @@ test('new role entry resolves semantic aliases to the canonical label',()=>{
  const h=harness();h.run("state.roles=['机器人算法'];state.roleAliases={'机器人算法研究员':'机器人算法'}");
  assert.equal(h.run("existingRoleName('机器人算法研究员')"),'机器人算法');
 });
+
+test('interview notes deduplicate round shortcuts, support deletion, and render standalone review timeline with hotwords',()=>{
+ const h=harness();
+ h.run("state.companies=[{id:'a',name:'星河机器人',roles:['具身智能算法'],status:'一面',interview:{phase:'feedback',at:'2026-11-16T03:00:00.000Z',location:'https://example.com/meeting'}},{id:'b',name:'远山科技',roles:['具身智能算法'],status:'一面'}]");
+ h.run("state.history=[{id:'h2',companyId:'a',kind:'complete',toStatus:'一面',detail:'{}',at:200,recordedAt:200},{id:'h1',companyId:'a',kind:'status',fromStatus:'已投',toStatus:'一面',detail:'',at:100,recordedAt:100}]");
+ h.run("state.notes=[{id:'n1',companyId:'a',eventId:'h1',stage:'一面',meetingAt:'2026-11-16T03:00:00.000Z',title:'一面复盘',body:'算法面试流程通了也不行， **要了解pipeline  组件如何交流 ， 同时 了解细节**',category:'复盘',updatedAt:300},{id:'n2',companyId:'a',eventId:'h1',stage:'一面',meetingAt:'',title:'',body:'',category:'复盘',updatedAt:301},{id:'n3',companyId:'b',eventId:'b',stage:'一面',meetingAt:'2026-11-18T08:00:00.000Z',title:'一面复盘',body:'1. 需要了解 路线优劣， 仿真数据， 传感器数据\\n2. 强化项目熟悉程度',category:'复盘',updatedAt:302}]");
+ assert.equal(h.run("noteAction(state.history[1])"),'');
+ assert.match(h.run("noteAction(state.history[0])"),/查看 \/ 编辑面试记录 · 已有 2 篇/);
+ assert.equal(h.run("deleteNote('n2')"),true);
+ assert.equal(h.run("state.notes.length"),2);
+ const keywords=[...h.run("extractHotKeywords(state.notes).map(k=>k.word)")];
+ assert.deepEqual(keywords,['项目与底层细节','Pipeline 组件通信','技术路线对比','传感器数据','仿真数据']);
+ assert.ok(!keywords.includes('要了解')&&!keywords.includes('同时')&&!keywords.includes('流程')&&!keywords.includes('算法'));
+ const overview=h.run("buildMacroOverview(state.notes, extractHotKeywords(state.notes))");
+ assert.match(overview,/项目与底层细节/);
+ h.run("renderReviewsPage()");
+ const html=h.run("document.getElementById('reviews-page').innerHTML");
+ assert.match(html,/星河机器人/);
+ assert.match(html,/远山科技/);
+ assert.match(html,/复盘总览与高频考点/);
+ assert.doesNotMatch(html,/核心反思与重点摘录/);
+});

@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 560" width="100%" height="100%">
+  <rect width="1120" height="560" rx="12" fill="#f8f7f3" stroke="#dcded3" stroke-width="1.5"/>
+
+  <!-- Top Navigation Bar -->
+  <line x1="0" y1="68" x2="1120" y2="68" stroke="#d8dad0" stroke-width="1"/>
+  <circle cx="56" cy="34" r="18" fill="#c55333"/>
+  <text x="56" y="41" text-anchor="middle" font-family="system-ui, sans-serif" font-size="19" fill="#ffffff">↗</text>
+  <text x="84" y="33" font-family="'PingFang SC', sans-serif" font-size="19" font-weight="700" fill="#202820" letter-spacing="1">投递</text>
+  <text x="84" y="46" font-family="Consolas, monospace" font-size="7" fill="#808376" letter-spacing="1.5">CAREER WORKSPACE</text>
+
+  <!-- Nav Tabs -->
+  <text x="186" y="39" font-family="'PingFang SC', sans-serif" font-size="14" fill="#82847d">投递工作台</text>
+  <rect x="262" y="26" width="22" height="16" rx="8" fill="#eae8df"/>
+  <text x="273" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="#687060">6</text>
+
+  <text x="312" y="39" font-family="'PingFang SC', sans-serif" font-size="14" font-weight="600" fill="#bd5237">面试复盘</text>
+  <rect x="374" y="26" width="22" height="16" rx="8" fill="#f2ded4"/>
+  <text x="385" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="#aa4d32">2</text>
+  <rect x="310" y="66" width="88" height="2" fill="#c55333"/>
+
+  <!-- Breadcrumb & Sync -->
+  <text x="40" y="96" font-family="'PingFang SC', sans-serif" font-size="12" fill="#687060">个人空间  /  面试复盘</text>
+  <circle cx="1008" cy="92" r="3.5" fill="#8c9b71"/>
+  <text x="1018" y="96" font-family="'PingFang SC', sans-serif" font-size="12" fill="#687060">已同步到云端</text>
+
+  <!-- Section Header -->
+  <text x="40" y="136" font-family="'PingFang SC', sans-serif" font-size="18" font-weight="600" fill="#202820">面试复盘与历程</text>
+  <rect x="174" y="121" width="22" height="18" rx="3" fill="#e9ecdf"/>
+  <text x="185" y="134" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#6e795f">2</text>
+  <text x="40" y="156" font-family="'PingFang SC', sans-serif" font-size="12" fill="#687060">共 2 篇记录，覆盖 2 家公司 · 串联每一次实战问答与复盘反思。</text>
+
+  <rect x="900" y="120" width="96" height="34" rx="4" fill="#c55333"/>
+  <text x="948" y="142" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="13" font-weight="500" fill="#ffffff">＋ 新增复盘</text>
+  <rect x="1006" y="120" width="74" height="34" rx="4" fill="transparent" stroke="#d1d4c8"/>
+  <text x="1043" y="142" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="13" fill="#242726">返回投递表</text>
+
+  <!-- Hotwords & Macro Overview Panel -->
+  <rect x="40" y="174" width="1040" height="126" rx="5" fill="#fffefa" stroke="#dedfd6"/>
+  <text x="62" y="202" font-family="'PingFang SC', sans-serif" font-size="15" font-weight="600" fill="#202820">复盘总览与高频考点</text>
+  <text x="720" y="201" font-family="'PingFang SC', sans-serif" font-size="12" fill="#687060">已由 Cloudflare Workers AI 跨篇归纳总览与同义考点</text>
+  <rect x="936" y="186" width="124" height="22" rx="4" fill="#fdf6f1" stroke="#dfb9a7"/>
+  <text x="998" y="201" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="11" font-weight="600" fill="#c55333">✦ CF AI 已总结 · 重算</text>
+
+  <!-- AI Macro Overview Banner -->
+  <rect x="62" y="214" width="996" height="34" rx="3" fill="#fcf6f0"/>
+  <rect x="62" y="214" width="3" height="34" fill="#c55333"/>
+  <text x="76" y="236" font-family="'PingFang SC', sans-serif" font-size="13" font-weight="600" fill="#7d301c">✦ AI 全局总览：</text>
+  <text x="176" y="236" font-family="'PingFang SC', sans-serif" font-size="13" fill="#202820">累计复盘 2 家公司（一面），跨场次共性高频考察集中于「项目与底层细节、Pipeline 组件通信」，同时涉及技术路线对比、多源数据体系等方向。</text>
+
+  <!-- Keyword Chips -->
+  <g transform="translate(62, 260)">
+    <rect x="0" y="0" width="90" height="26" rx="13" fill="#c55333"/>
+    <text x="45" y="17" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" font-weight="600" fill="#ffffff">全部考点 2</text>
+
+    <rect x="98" y="0" width="126" height="26" rx="13" fill="#fdf6f1" stroke="#dfb9a7"/>
+    <text x="161" y="17" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" fill="#2c332b">项目与底层细节 2</text>
+
+    <rect x="232" y="0" width="136" height="26" rx="13" fill="#fdf6f1" stroke="#dfb9a7"/>
+    <text x="300" y="17" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" fill="#2c332b">Pipeline 组件通信 1</text>
+
+    <rect x="376" y="0" width="114" height="26" rx="13" fill="#f8f7f3" stroke="#d4d7ca"/>
+    <text x="433" y="17" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" fill="#2c332b">技术路线对比 1</text>
+
+    <rect x="498" y="0" width="114" height="26" rx="13" fill="#f8f7f3" stroke="#d4d7ca"/>
+    <text x="555" y="17" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" fill="#2c332b">Sim2Real 评测 1</text>
+
+    <rect x="620" y="0" width="106" height="26" rx="13" fill="#f8f7f3" stroke="#d4d7ca"/>
+    <text x="673" y="17" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" fill="#2c332b">算子与内存 1</text>
+  </g>
+
+  <!-- Timeline Card 1 -->
+  <g transform="translate(40, 322)">
+    <rect x="48" y="10" width="54" height="24" rx="4" fill="#f6e6dc" stroke="#dfb9a7"/>
+    <text x="75" y="26" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" font-weight="600" fill="#7d301c">一面</text>
+    <text x="102" y="50" text-anchor="end" font-family="system-ui, sans-serif" font-size="11" fill="#687060">10/18 16:00</text>
+
+    <rect x="122" y="0" width="918" height="104" rx="5" fill="#fffefa" stroke="#dedfd6"/>
+    <text x="144" y="28" font-family="'PingFang SC', sans-serif" font-size="15" font-weight="600" fill="#202820">远山科技 ↗</text>
+    <rect x="234" y="14" width="38" height="18" rx="3" fill="#eeede4"/>
+    <text x="253" y="27" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="11" fill="#465046">复盘</text>
+    <rect x="280" y="14" width="84" height="18" rx="3" fill="#f8efd9" stroke="#e8d8ad"/>
+    <text x="322" y="27" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="11" fill="#9f7d37">一面 · 待反馈</text>
+    <rect x="372" y="14" width="88" height="18" rx="3" fill="#eef0e8"/>
+    <text x="416" y="27" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="11" fill="#748063">机器人算法</text>
+
+    <rect x="942" y="12" width="48" height="26" rx="3" fill="transparent" stroke="#d1d4c8"/>
+    <text x="966" y="29" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" fill="#242726">编辑</text>
+    <text x="1008" y="29" font-family="'PingFang SC', sans-serif" font-size="12" fill="#b74339">删除</text>
+
+    <text x="144" y="54" font-family="'PingFang SC', sans-serif" font-size="15" font-weight="600" fill="#171d18">一面技术复盘：仿真闭环与方案选型</text>
+    <line x1="144" y1="64" x2="1018" y2="64" stroke="#ecece4"/>
+    <text x="144" y="86" font-family="'PingFang SC', sans-serif" font-size="13" fill="#202820">1. 围绕 Sim2Real 迁移误差与路线优劣展开提问　　2. 需进一步强化项目架构边界与实验数据细节</text>
+  </g>
+
+  <!-- Timeline Card 2 -->
+  <g transform="translate(40, 440)">
+    <rect x="48" y="10" width="54" height="24" rx="4" fill="#f6e6dc" stroke="#dfb9a7"/>
+    <text x="75" y="26" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="12" font-weight="600" fill="#7d301c">一面</text>
+    <text x="102" y="50" text-anchor="end" font-family="system-ui, sans-serif" font-size="11" fill="#687060">11/16 11:00</text>
+
+    <rect x="122" y="0" width="918" height="96" rx="5" fill="#fffefa" stroke="#dedfd6"/>
+    <text x="144" y="28" font-family="'PingFang SC', sans-serif" font-size="15" font-weight="600" fill="#202820">星河机器人 ↗</text>
+    <rect x="248" y="14" width="38" height="18" rx="3" fill="#eeede4"/>
+    <text x="267" y="27" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="11" fill="#465046">复盘</text>
+    <rect x="294" y="14" width="84" height="18" rx="3" fill="#f8efd9" stroke="#e8d8ad"/>
+    <text x="336" y="27" text-anchor="middle" font-family="'PingFang SC', sans-serif" font-size="11" fill="#9f7d37">一面 · 待反馈</text>
+
+    <text x="144" y="54" font-family="'PingFang SC', sans-serif" font-size="15" font-weight="600" fill="#171d18">一面复盘</text>
+    <line x1="144" y1="64" x2="1018" y2="64" stroke="#ecece4"/>
+    <text x="144" y="84" font-family="'PingFang SC', sans-serif" font-size="13" fill="#202820">算法面试流程通了也不行，</text>
+    <text x="302" y="84" font-family="'PingFang SC', sans-serif" font-size="13" font-weight="700" fill="#7d301c">要了解 pipeline 组件如何交流，同时了解底层实现细节</text>
+  </g>
+</svg>
