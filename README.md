@@ -150,8 +150,7 @@ database_id = "替换为你自己的数据库 ID"
 binding = "AI"
 ```
 
-> **提示**：仓库中的 `database_id` 属于原项目，部署前请替换为你自己创建的 D1 数据库 ID。若修改了 `database_name`，请同步更新 `package.json` 与 `.github/workflows/` 中的迁移命令。  
-> `migrations/0002_import_data.sql` 包含早期初始化数据，全新个人部署前可按需清空或调整其中的初始公司记录。
+> **提示**：仓库中的 `database_id` 属于原项目，部署前请替换为你自己创建的 D1 数据库 ID。若修改了 `database_name`，请同步更新 `package.json` 与 `.github/workflows/` 中的迁移命令。
 
 ### 2. 本地开发与数据库迁移
 
@@ -190,7 +189,7 @@ npm run deploy
 | 迁移文件 | 用途说明 |
 | --- | --- |
 | `0001_init.sql` | 基础 `companies` 与 `roles` 表结构 |
-| `0002_import_data.sql` | 早期初始化数据（使用 `INSERT OR IGNORE`，绝不覆盖已有编辑记录） |
+| `0002_import_data.sql` | 默认基础岗位种子数据（使用 `INSERT OR IGNORE`，绝不覆盖已有记录） |
 | `0003_sync.sql` | 记录固定排序（`position`）、乐观锁版本号（`revision`）与事务写入令牌（`write_token`） |
 | `0004_workbench.sql` | 星标（`starred`）、回收站（`deleted_at`）、面试安排（`interview`）与独立历史表（`company_history`） |
 | `0005_interview_notes.sql` | 独立面试笔记表（`interview_notes`），支持绑定具体面试事件锚点 |

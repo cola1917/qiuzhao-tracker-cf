@@ -45,10 +45,9 @@ test('legacy timestamps load in milliseconds and old backups without edit times 
 test('legacy seed import does not overwrite existing user edits', async () => {
     const { readFileSync } = await import('node:fs');
     const env = environment();
+    env.DB.db.prepare('INSERT INTO companies (id, name, note) VALUES (?, ?, ?)').run('demo-1', '示例公司', 'preserve current user note');
     const seed = readFileSync(new URL('../migrations/0002_import_data.sql', import.meta.url), 'utf8');
     env.DB.db.exec(seed);
-    const original = env.DB.db.prepare('SELECT id FROM companies LIMIT 1').get();
-    env.DB.db.prepare('UPDATE companies SET note = ? WHERE id = ?').run('preserve current user note', original.id);
-    env.DB.db.exec(seed);
-    assert.equal(env.DB.db.prepare('SELECT note FROM companies WHERE id = ?').get(original.id).note, 'preserve current user note');
+    assert.equal(env.DB.db.prepare('SELECT note FROM companies WHERE id = ?').get('demo-1').note, 'preserve current user note');
+    assert.ok(env.DB.db.prepare('SELECT COUNT(*) AS count FROM roles').get().count >= 16);
 });
