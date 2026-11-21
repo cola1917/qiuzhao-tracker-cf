@@ -220,15 +220,19 @@ function renderHeatmap() {
     const start = new Date(end); start.setDate(start.getDate() - (26 * 7 - 1));
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
     let max = 1, total = 0, active = 0;
-    const cells = [];
+    const days = [];
     for (const cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
         const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
         const c = counts.get(key) || 0;
         if (c > max) max = c;
         total += c; if (c) active++;
-        const level = c ? Math.max(1, Math.min(4, Math.ceil(c / max * 4))) : 0;
-        cells.push(`<i class="heat-cell${cur > end ? ' future' : ''}" data-level="${level}" title="${key} · ${c} 份投递"></i>`);
+        days.push({ key, c });
     }
+    // Fixed global max ensures color depth is monotonic: more submissions can never be a lighter shade.
+    const cells = days.map(({ key, c }) => {
+        const level = c ? Math.max(1, Math.min(4, Math.ceil(c / max * 4))) : 0;
+        return `<i class="heat-cell" data-level="${level}" title="${key} · ${c} 份投递"></i>`;
+    });
     node.innerHTML = cells.join('');
     const summary = $('heatmap-summary');
     if (summary) summary.innerHTML = `近 26 周共 <b>${total}</b> 份投递 · <b>${active}</b> 个活跃日`;

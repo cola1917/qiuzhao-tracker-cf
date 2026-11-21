@@ -188,6 +188,11 @@ test('application heatmap counts submissions by day and funnel bar reflects the 
  assert.match(html,/data-level="[1-4]"/);
  const summary=h.run("document.getElementById('heatmap-summary').innerHTML");
  assert.match(summary,/2<\/b> 份投递/);
+ // Color depth must be monotonic across the whole range, not computed from a running max.
+ const keys=h.run("(()=>{const d=new Date();const mk=n=>{const x=new Date(d);x.setDate(x.getDate()-n);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};const small=mk(9),big=mk(3);state.companies=[...Array(3).fill({appliedAt:small}),...Array(9).fill({appliedAt:big})];return {small,big}})()");
+ h.run('renderHeatmap()');
+ const levels=h.run("(()=>{const map={};document.getElementById('heatmap').innerHTML.replace(/data-level=\"(\\d+)\" title=\"([\\d-]+)/g,(_,lv,k)=>{map[k]=Number(lv);return ''});return map;})()");
+ assert.ok(levels[keys.small] < levels[keys.big], '3 份投递不应比 9 份颜色更深');
  h.run("state.companies=[{status:'未投'},{status:'一面'},{status:'OC'}]");
  h.run('renderStats()');
  const pipe=h.run("document.getElementById('pipeline').innerHTML");
