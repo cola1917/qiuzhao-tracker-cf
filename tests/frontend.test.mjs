@@ -193,6 +193,8 @@ test('application heatmap counts submissions by day and funnel bar reflects the 
  h.run('renderHeatmap()');
  const levels=h.run("(()=>{const map={};document.getElementById('heatmap').innerHTML.replace(/data-level=\"(\\d+)\" title=\"([\\d-]+)/g,(_,lv,k)=>{map[k]=Number(lv);return ''});return map;})()");
  assert.ok(levels[keys.small] < levels[keys.big], '3 份投递不应比 9 份颜色更深');
+ assert.match(h.run("document.getElementById('heat-weekdays').innerHTML"),/一/);
+ assert.match(h.run("document.getElementById('heat-months').innerHTML"),/月/);
  h.run("state.companies=[{status:'未投'},{status:'一面'},{status:'OC'}]");
  h.run('renderStats()');
  const pipe=h.run("document.getElementById('pipeline').innerHTML");

@@ -234,6 +234,20 @@ function renderHeatmap() {
         return `<i class="heat-cell" data-level="${level}" title="${key} · ${c} 份投递"></i>`;
     });
     node.innerHTML = cells.join('');
+    // Weekday labels on the left (Mon/Wed/Fri), aligned to grid rows 1/3/5.
+    const wd = $('heat-weekdays');
+    if (wd) wd.innerHTML = ['一', '', '三', '', '五', '', ''].map(t => `<span>${t}</span>`).join('');
+    // Month labels on top: mark the first week each month appears. Each column is 14px (11px cell + 3px gap).
+    const months = $('heat-months');
+    if (months) {
+        const marks = []; let lastMonth = -1;
+        days.forEach(({ key }, i) => {
+            const month = Number(key.slice(5, 7));
+            if (month !== lastMonth) { marks.push({ col: Math.floor(i / 7), text: `${month}月` }); lastMonth = month; }
+        });
+        months.innerHTML = marks.map(m => `<span style="left:${m.col * 14}px">${m.text}</span>`).join('');
+    }
+    node.innerHTML = cells.join('');
     const summary = $('heatmap-summary');
     if (summary) summary.innerHTML = `近 26 周共 <b>${total}</b> 份投递 · <b>${active}</b> 个活跃日`;
 }
