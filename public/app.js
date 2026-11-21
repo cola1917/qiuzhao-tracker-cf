@@ -217,7 +217,8 @@ function renderHeatmap() {
         if (/^\d{4}-\d{2}-\d{2}$/.test(d || '') && Number.isFinite(Date.parse(d))) counts.set(d, (counts.get(d) || 0) + 1);
     }
     const end = new Date(); end.setHours(0, 0, 0, 0);
-    const start = new Date(end); start.setDate(start.getDate() - (26 * 7 - 1));
+    const WEEKS = 52;
+    const start = new Date(end); start.setDate(start.getDate() - (WEEKS * 7 - 1));
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
     let max = 1, total = 0, active = 0;
     const days = [];
@@ -233,11 +234,13 @@ function renderHeatmap() {
         const level = c ? Math.max(1, Math.min(4, Math.ceil(c / max * 4))) : 0;
         return `<i class="heat-cell" data-level="${level}" title="${key} · ${c} 份投递"></i>`;
     });
+    const cols = Math.ceil(days.length / 7);
+    if (node.style) node.style.gridTemplateColumns = `repeat(${cols}, minmax(11px, 1fr))`;
     node.innerHTML = cells.join('');
     // Weekday labels on the left (Mon/Wed/Fri), aligned to grid rows 1/3/5.
     const wd = $('heat-weekdays');
     if (wd) wd.innerHTML = ['一', '', '三', '', '五', '', ''].map(t => `<span>${t}</span>`).join('');
-    // Month labels on top: mark the first week each month appears. Each column is 14px (11px cell + 3px gap).
+    // Month labels on top: mark the first week each month appears. Position by percentage so they follow flexible columns.
     const months = $('heat-months');
     if (months) {
         const marks = []; let lastMonth = -1;
@@ -246,11 +249,10 @@ function renderHeatmap() {
             if (month !== lastMonth) { marks.push({ col: Math.floor(i / 7), text: `${month}月` }); lastMonth = month; }
         });
         // Skip labels that would collide (mirrors GitHub: need ~3 columns between month marks).
-        months.innerHTML = marks.filter((m, i) => i === 0 || m.col - marks[i - 1].col >= 2).map(m => `<span style="left:${m.col * 14}px">${m.text}</span>`).join('');
+        months.innerHTML = marks.filter((m, i) => i === 0 || m.col - marks[i - 1].col >= 2).map(m => `<span style="left:${(m.col / cols * 100).toFixed(2)}%">${m.text}</span>`).join('');
     }
-    node.innerHTML = cells.join('');
     const summary = $('heatmap-summary');
-    if (summary) summary.innerHTML = `近 26 周共 <b>${total}</b> 份投递 · <b>${active}</b> 个活跃日`;
+    if (summary) summary.innerHTML = `近一年共 <b>${total}</b> 份投递 · <b>${active}</b> 个活跃日`;
 }
 function touchCompany(co) {
     co.updatedAt = Math.max(Date.now(), ...state.companies.map(c => (c.updatedAt || 0) + 1));
