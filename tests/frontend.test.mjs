@@ -195,6 +195,13 @@ test('application heatmap counts submissions by day and funnel bar reflects the 
  assert.ok(levels[keys.small] < levels[keys.big], '3 份投递不应比 9 份颜色更深');
  assert.match(h.run("document.getElementById('heat-weekdays').innerHTML"),/一/);
  assert.match(h.run("document.getElementById('heat-months').innerHTML"),/月/);
+ // Year navigation changes which calendar year is rendered.
+ const thisYear=new Date().getFullYear();
+ assert.equal(h.run("document.getElementById('heatmap-year').textContent"),String(thisYear));
+ h.run(`heatmapYear=${thisYear-1};renderHeatmap()`);
+ assert.equal(h.run("document.getElementById('heatmap-year').textContent"),String(thisYear-1));
+ assert.match(h.run("document.getElementById('heatmap-summary').innerHTML"),new RegExp(`${thisYear-1} 年共`));
+ h.run(`heatmapYear=${thisYear};renderHeatmap()`);
  h.run("state.companies=[{status:'未投'},{status:'一面'},{status:'OC'}]");
  h.run('renderStats()');
  const pipe=h.run("document.getElementById('pipeline').innerHTML");

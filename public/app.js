@@ -6,6 +6,7 @@ const DEFAULT_ROLES = ['具身智能算法', '机器人算法', 'VLA / 多模态
 const emptyState = () => ({ v: 3, revision: 0, roles: [...DEFAULT_ROLES], companies: [], trash: [], history: [], notes: [], historyEdits: [], activity: [] });
 let state = emptyState(), mode = 'loading', dirty = false, saving = false, generation = 0, timer, blocked = false, pending = null;
 let view = 'all';
+let heatmapYear = new Date().getFullYear();
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const days = date => date ? Math.round((Date.parse(date + 'T00:00:00') - Date.parse(today() + 'T00:00:00')) / 86400000) : null;
@@ -211,28 +212,33 @@ function renderStats() {
 function render() { renderStats(); renderHeatmap(); renderTable(); renderAgenda(); if (typeof renderReviewsPage === 'function') renderReviewsPage(); }
 function renderHeatmap() {
     const node = $('heatmap'); if (!node) return;
+    const year = heatmapYear;
     const counts = new Map();
     for (const co of state.companies) {
         const d = co.appliedAt;
         if (/^\d{4}-\d{2}-\d{2}$/.test(d || '') && Number.isFinite(Date.parse(d))) counts.set(d, (counts.get(d) || 0) + 1);
     }
-    const end = new Date(); end.setHours(0, 0, 0, 0);
-    const WEEKS = 52;
-    const start = new Date(end); start.setDate(start.getDate() - (WEEKS * 7 - 1));
+    // Current calendar year: Jan 1 – Dec 31, expanded to full Monday-start weeks.
+    const start = new Date(year, 0, 1);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    const dec31 = new Date(year, 11, 31);
+    const spanDays = Math.ceil((dec31 - start) / 86400000) + 1;
+    const totalDays = Math.ceil(spanDays / 7) * 7;
+    const end = new Date(start); end.setDate(start.getDate() + totalDays - 1);
     let max = 1, total = 0, active = 0;
     const days = [];
     for (const cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
         const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-        const c = counts.get(key) || 0;
+        const outside = cur.getFullYear() !== year;
+        const c = outside ? 0 : (counts.get(key) || 0);
         if (c > max) max = c;
-        total += c; if (c) active++;
-        days.push({ key, c });
+        if (!outside) { total += c; if (c) active++; }
+        days.push({ key, c, outside, month: cur.getMonth() + 1 });
     }
     // Fixed global max ensures color depth is monotonic: more submissions can never be a lighter shade.
-    const cells = days.map(({ key, c }) => {
+    const cells = days.map(({ key, c, outside }) => {
         const level = c ? Math.max(1, Math.min(4, Math.ceil(c / max * 4))) : 0;
-        return `<i class="heat-cell" data-level="${level}" title="${key} · ${c} 份投递"></i>`;
+        return `<i class="heat-cell${outside ? ' outside' : ''}" data-level="${level}" title="${key} · ${c} 份投递"></i>`;
     });
     const cols = Math.ceil(days.length / 7);
     if (node.style) node.style.gridTemplateColumns = `repeat(${cols}, minmax(11px, 1fr))`;
@@ -244,15 +250,16 @@ function renderHeatmap() {
     const months = $('heat-months');
     if (months) {
         const marks = []; let lastMonth = -1;
-        days.forEach(({ key }, i) => {
-            const month = Number(key.slice(5, 7));
+        days.forEach(({ outside, month }, i) => {
+            if (outside) return;
             if (month !== lastMonth) { marks.push({ col: Math.floor(i / 7), text: `${month}月` }); lastMonth = month; }
         });
         // Skip labels that would collide (mirrors GitHub: need ~3 columns between month marks).
         months.innerHTML = marks.filter((m, i) => i === 0 || m.col - marks[i - 1].col >= 2).map(m => `<span style="left:${(m.col / cols * 100).toFixed(2)}%">${m.text}</span>`).join('');
     }
+    const yearLabel = $('heatmap-year'); if (yearLabel) yearLabel.textContent = String(year);
     const summary = $('heatmap-summary');
-    if (summary) summary.innerHTML = `近一年共 <b>${total}</b> 份投递 · <b>${active}</b> 个活跃日`;
+    if (summary) summary.innerHTML = `${year} 年共 <b>${total}</b> 份投递 · <b>${active}</b> 个活跃日`;
 }
 function touchCompany(co) {
     co.updatedAt = Math.max(Date.now(), ...state.companies.map(c => (c.updatedAt || 0) + 1));
@@ -548,6 +555,8 @@ $('theme').onclick = () => { theme = theme === 'dark' ? 'light' : 'dark'; applyT
     localStorage.setItem('qiuzhao-theme', theme);
 }
 catch { } };
+if ($('heat-prev')) $('heat-prev').onclick = () => { heatmapYear -= 1; renderHeatmap(); };
+if ($('heat-next')) $('heat-next').onclick = () => { heatmapYear += 1; renderHeatmap(); };
 window.addEventListener('beforeunload', e => { if (dirty || saving) {
     cache();
     e.preventDefault();
