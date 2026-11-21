@@ -245,7 +245,8 @@ function renderHeatmap() {
             const month = Number(key.slice(5, 7));
             if (month !== lastMonth) { marks.push({ col: Math.floor(i / 7), text: `${month}月` }); lastMonth = month; }
         });
-        months.innerHTML = marks.map(m => `<span style="left:${m.col * 14}px">${m.text}</span>`).join('');
+        // Skip labels that would collide (mirrors GitHub: need ~3 columns between month marks).
+        months.innerHTML = marks.filter((m, i) => i === 0 || m.col - marks[i - 1].col >= 2).map(m => `<span style="left:${m.col * 14}px">${m.text}</span>`).join('');
     }
     node.innerHTML = cells.join('');
     const summary = $('heatmap-summary');
