@@ -191,6 +191,5 @@ th{font-size:13px;letter-spacing:0;font-weight:600}
 .inline-status{font-size:13px;width:92px}
 @media(max-width:760px){.nav{font-size:13px}.topbar,.saveflag{font-size:11px}.section-title>span{font-size:11px}}
 
-/* Editorial emphasis: stronger "Upcoming" block, subtle motion. */
-.agenda-strip{position:relative;padding-left:18px;border-left:3px solid var(--accent);border-bottom:1px solid var(--line)}
+/* Editorial emphasis: subtle motion only (Agenda is styled in workbench.css). */
 @media(prefers-reduced-motion:no-preference){.nav,.btn,.kw-chip,.inline-status,.stat{transition:background .16s,border-color .16s,color .16s,box-shadow .16s}}

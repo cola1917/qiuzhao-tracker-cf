@@ -1,4 +1,4 @@
-.agenda-strip{display:flex;align-items:flex-start;gap:24px;padding:0 0 22px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+.agenda-strip{display:flex;align-items:center;gap:24px;padding:14px 20px;margin-bottom:24px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:4px;background:var(--surface)}
 button.stat{text-align:left;font-family:inherit;cursor:pointer;position:relative}
 .role-search{width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px}
 .role-group-title{font-size:11px;color:var(--muted);margin:12px 4px 5px;font-weight:600}
@@ -32,6 +32,7 @@ button.stat:focus-visible{outline:2px solid var(--green);outline-offset:4px}
 #agenda button{border:0;background:none;text-align:left;padding:0;font-size:13px;color:var(--ink)}
 #agenda strong{font-weight:600;color:var(--green)}
 #agenda small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+#agenda .quiet{margin:0}
 .overview{display:none}
 .add-actions{display:flex;align-items:stretch}
 .add-actions>.btn{border-radius:4px 0 0 4px}
@@ -167,8 +168,6 @@ td.company-cell{min-width:195px;width:auto}td.role-cell{min-width:170px;width:19
 .heat-cell[data-level="3"]{background:var(--heat-3)}
 .heat-cell[data-level="4"]{background:var(--heat-4)}
 .heat-cell.future{opacity:.28}
-.heatmap-legend{display:flex;align-items:center;gap:5px;margin-top:10px;font-size:11px;color:var(--muted)}
-.heatmap-legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
 @media(prefers-reduced-motion:no-preference){.heat-cell{transition:transform .12s}.heat-cell:hover{transform:scale(1.35)}}
 
 /* Stage funnel bar */
