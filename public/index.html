@@ -7,13 +7,14 @@
   <nav aria-label="页面切换"><button type="button" class="nav active" data-page="workbench" aria-pressed="true">投递工作台 <b id="nav-company-count">0</b></button><button type="button" class="nav" data-page="reviews" aria-pressed="false">面试复盘 <b id="nav-note-count">0</b></button></nav>
   <div class="navlabel">我的工作台</div>
   <div class="side-note"><span class="sprout">✳</span><h3>每一步，都算数。</h3><p>把机会整理好，<br>把精力留给下一次出发。</p></div>
-  <div class="side-bottom"><button id="theme" class="text-btn" hidden>◐ 切换深色</button><span class="edition">为下一站，做好准备。</span></div>
+  <div class="side-bottom"><span class="edition">为下一站，做好准备。</span></div>
 </aside>
 <main>
-  <header class="topbar"><span id="page-breadcrumb">个人空间 <span class="slash">/</span> 求职工作台</span><div class="header-actions"><div class="saveflag" id="saveflag" role="status"><i></i><span id="savetext">等待连接</span></div></div></header>
+  <header class="topbar"><span id="page-breadcrumb">个人空间 <span class="slash">/</span> 求职工作台</span><div class="header-actions"><div class="saveflag" id="saveflag" role="status"><i></i><span id="savetext">等待连接</span></div><button id="theme" class="text-btn" type="button" aria-label="切换深浅主题" title="切换深浅主题">◐ 深色</button></div></header>
   <div class="content">
     <div id="notice" class="notice" role="status" hidden></div><div class="recovery" id="recovery" hidden><span>此浏览器有尚未同步的修改。</span><button class="btn primary" id="recover">保留本机修改并同步</button><button class="btn" id="discard-pending">用云端最新数据</button><button class="btn" id="backup-pending">备份未同步数据</button></div>
     <section class="stats" id="stats" aria-label="投递统计"></section>
+    <section class="heatmap-strip"><div class="heatmap-head"><h2>投递热力图</h2><span id="heatmap-summary">近 26 周的投递节奏</span></div><div id="heatmap" class="heatmap" role="img" aria-label="按天统计的投递热力图"></div><div class="heatmap-legend"><span>少</span><i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i><span>多</span></div></section>
     <section class="agenda-strip"><h2>近期安排</h2><div id="agenda"></div></section><section class="overview"><div class="progress-panel"><div class="section-title"><h2>你的求职进度</h2><span>每一份投递，都是新的可能</span></div><div id="pipeline" class="pipeline"></div></div><div class="deadline-panel"><div class="section-title"><h2>近期截止</h2><span class="tag">未来 7 天</span></div><div id="upcoming"></div></div></section>
     <section class="records"><div class="records-head"><div><h2 id="view-title">全部投递 <span id="resultcount">0</span></h2><p>机会与进展，在这里有序发生。</p></div><div class="records-actions"><div class="add-actions"><button class="btn primary" id="add">＋ 新增投递</button><details class="data-menu add-menu"><summary class="btn primary" aria-label="更多新增方式">▾</summary><div><button id="bulk-open">批量录入公司</button></div></details></div><details class="data-menu"><summary class="btn">数据管理 ↓</summary><div><button id="trash-open">回收站</button><button id="expcsv">导出 CSV</button><button id="expjson">备份 JSON</button><button id="impjson">恢复备份</button><button id="reload">重新载入云端</button><button id="local-mode">仅在此浏览器使用</button></div></details></div></div>
 

@@ -153,9 +153,8 @@ input:focus,textarea:focus,select:focus{outline:2px solid #8eaf65;outline-offset
 .auth-dialog small{font-size:10px;color:var(--muted);display:block;text-align:center}
 .error{color:var(--danger)!important}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
-:root[data-theme="dark"]{color-scheme:dark;--bg:#17231f;--surface:#1e2d27;--soft:#293a31;--ink:#e1e9e0;--muted:#9aaa9c;--line:#33443a;--green:#8ab58e;--green-soft:#304737;--danger:#eea099;--shadow:0 18px 70px #0005}
-:root[data-theme="dark"] .primary,:root[data-theme="dark"] .stat:first-child,:root[data-theme="dark"] .brandmark{color:#172c22}
-:root[data-theme="dark"] .stat:first-child .stat-label,:root[data-theme="dark"] .stat:first-child small{color:#254331}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#191b18;--surface:#23261f;--soft:#2c3029;--ink:#e9ebe4;--muted:#9a9f94;--line:#3a3f37;--green:#e07a55;--green-soft:#3a2821;--danger:#e08078;--shadow:0 18px 70px #0006}
+:root[data-theme="dark"] .btn.primary{color:#fff}
 @media(min-width:1600px){.content{padding-top:48px}
 .stats{gap:22px}
 .stat{padding:25px 28px}

@@ -201,13 +201,38 @@ function renderStats() {
         n.out++; });
     $('stats').innerHTML = [[n.all, '全部投递', '把握每一个值得尝试的机会', '↗'], [n.todo, '待投递', '准备好，就向前一步', '◷'], [n.live, '进行中', '笔试与面试，持续向前', '↗'], [n.oc, '收获 Offer', '努力正在得到回响', '✧']].map(([value, label, desc, icon],index) => `<button type="button" class="stat ${view===['all','todo','live','oc'][index]?'active':''}" data-view="${['all','todo','live','oc'][index]}" aria-pressed="${view===['all','todo','live','oc'][index]}"><div class="stat-label">${label}<i>${icon}</i></div><strong>${value.toString().padStart(2, '0')}</strong><small>${desc}</small></button>`).join('');
     const stageCounts = [n.todo, n.sent - n.live - n.oc - n.out, n.live, n.oc, n.out];
-    $('pipeline').innerHTML = ['待投递', '已投递', '笔试 / 面试', 'Offer', '已结束'].map((label, i) => `<div class="stage"><div class="track"><i style="width:${n.all ? Math.round(stageCounts[i] / n.all * 100) : 0}%"></i></div><span class="stage-label">${label}</span><b>${stageCounts[i].toString().padStart(2, '0')}</b></div>`).join('');
+    const funnel = stageCounts.map((c,i) => `<i class="funnel-seg f${i}" style="width:${n.all ? (c / n.all * 100).toFixed(1) : 0}%"></i>`).join('');
+    $('pipeline').innerHTML = `<div class="funnel-bar" aria-hidden="true">${funnel}</div>` + ['待投递', '已投递', '笔试 / 面试', 'Offer', '已结束'].map((label, i) => `<div class="stage"><div class="track"><i style="width:${n.all ? Math.round(stageCounts[i] / n.all * 100) : 0}%"></i></div><span class="stage-label">${label}</span><b>${stageCounts[i].toString().padStart(2, '0')}</b></div>`).join('');
     const upcoming = state.companies.filter(co => co.status === '未投' && co.deadline && days(co.deadline) >= 0 && days(co.deadline) <= 7).sort((a, b) => a.deadline.localeCompare(b.deadline));
     $('upcoming').innerHTML = upcoming.length ? upcoming.slice(0, 3).map(co => `<div class="upcoming-item"><i></i><button data-edit="${esc(co.id)}">${esc(co.name || '未命名公司')}</button><small>${days(co.deadline) === 0 ? '今天截止' : days(co.deadline) + ' 天后截止'}</small></div>`).join('') + (upcoming.length > 3 ? `<p class="quiet">另有 ${upcoming.length - 3} 家即将截止，筛选「待投清单」查看</p>` : '') : '<p class="quiet">暂无即将截止的待投机会，按自己的节奏前进。</p>';
     $('nav-company-count').textContent = String(n.all);
     $('nav-note-count').textContent = String((state.notes || []).length);
 }
-function render() { renderStats(); renderTable(); renderAgenda(); if (typeof renderReviewsPage === 'function') renderReviewsPage(); }
+function render() { renderStats(); renderHeatmap(); renderTable(); renderAgenda(); if (typeof renderReviewsPage === 'function') renderReviewsPage(); }
+function renderHeatmap() {
+    const node = $('heatmap'); if (!node) return;
+    const counts = new Map();
+    for (const co of state.companies) {
+        const d = co.appliedAt;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d || '') && Number.isFinite(Date.parse(d))) counts.set(d, (counts.get(d) || 0) + 1);
+    }
+    const end = new Date(); end.setHours(0, 0, 0, 0);
+    const start = new Date(end); start.setDate(start.getDate() - (26 * 7 - 1));
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    let max = 1, total = 0, active = 0;
+    const cells = [];
+    for (const cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
+        const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        const c = counts.get(key) || 0;
+        if (c > max) max = c;
+        total += c; if (c) active++;
+        const level = c ? Math.max(1, Math.min(4, Math.ceil(c / max * 4))) : 0;
+        cells.push(`<i class="heat-cell${cur > end ? ' future' : ''}" data-level="${level}" title="${key} · ${c} 份投递"></i>`);
+    }
+    node.innerHTML = cells.join('');
+    const summary = $('heatmap-summary');
+    if (summary) summary.innerHTML = `近 26 周共 <b>${total}</b> 份投递 · <b>${active}</b> 个活跃日`;
+}
 function touchCompany(co) {
     co.updatedAt = Math.max(Date.now(), ...state.companies.map(c => (c.updatedAt || 0) + 1));
 }
@@ -490,7 +515,13 @@ try {
 catch { }
 if (!theme)
     theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-function applyTheme() { document.documentElement.dataset.theme = theme; $('theme').textContent = theme === 'dark' ? '◐ 切换浅色' : '◐ 切换深色'; }
+function applyTheme() {
+    document.documentElement.dataset.theme = theme;
+    const btn = $('theme');
+    if (btn) btn.textContent = theme === 'dark' ? '◐ 浅色' : '◐ 深色';
+    const meta = document.querySelector?.('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#191b18' : '#f8f7f3');
+}
 applyTheme();
 $('theme').onclick = () => { theme = theme === 'dark' ? 'light' : 'dark'; applyTheme(); try {
     localStorage.setItem('qiuzhao-theme', theme);

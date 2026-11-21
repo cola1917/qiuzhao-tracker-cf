@@ -179,6 +179,34 @@ test('new role entry resolves semantic aliases to the canonical label',()=>{
  assert.equal(h.run("existingRoleName('机器人算法研究员')"),'机器人算法');
 });
 
+test('application heatmap counts submissions by day and funnel bar reflects the stage mix',()=>{
+ const h=harness();
+ h.run("(()=>{const d=new Date();const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');state.companies=[{appliedAt:k},{appliedAt:k}];})()");
+ h.run('renderHeatmap()');
+ const html=h.run("document.getElementById('heatmap').innerHTML");
+ assert.match(html,/heat-cell/);
+ assert.match(html,/data-level="[1-4]"/);
+ const summary=h.run("document.getElementById('heatmap-summary').innerHTML");
+ assert.match(summary,/2<\/b> 份投递/);
+ h.run("state.companies=[{status:'未投'},{status:'一面'},{status:'OC'}]");
+ h.run('renderStats()');
+ const pipe=h.run("document.getElementById('pipeline').innerHTML");
+ assert.match(pipe,/funnel-bar/);
+ assert.match(pipe,/funnel-seg f2/);
+ assert.match(pipe,/funnel-seg f4/);
+});
+
+test('dark theme variables are defined and the theme toggle is reachable',()=>{
+ const editorial=readFileSync(new URL('../public/editorial.css',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+ assert.match(editorial,/--accent:#e07a55/);
+ assert.doesNotMatch(editorial,/body\{background:#f8f7f3/);
+ const btn=html.match(/<button id="theme"[^>]*>/)[0];
+ assert.doesNotMatch(btn,/hidden/);
+ assert.match(html,/class="header-actions"/);
+ assert.match(html,/id="heatmap"/);
+});
+
 test('interview notes deduplicate round shortcuts, support deletion, and render standalone review timeline with hotwords',()=>{
  const h=harness();
  h.run("state.companies=[{id:'a',name:'星河机器人',roles:['具身智能算法'],status:'一面',interview:{phase:'feedback',at:'2026-11-16T03:00:00.000Z',location:'https://example.com/meeting'}},{id:'b',name:'远山科技',roles:['具身智能算法'],status:'一面'}]");
