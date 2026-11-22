@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import roleAliases from './role-aliases.ts';
+import { renderReminderEmail } from './email-template.ts';
 const canonicalRole = (role: string) => Object.hasOwn(roleAliases,role) ? (roleAliases as Record<string,string>)[role] : role;
 const canonicalRoles = (roles: string[]) => [...new Set(roles.map(canonicalRole))];
 type AiBinding = { run: (model: string, input: Record<string, unknown>) => Promise<unknown> };
 type Bindings = {
     DB: D1Database; ASSETS: Fetcher; AI?: AiBinding;
-    RESEND_API_KEY?: string; NOTIFY_EMAIL?: string; NOTIFY_FROM?: string;
+    RESEND_API_KEY?: string; NOTIFY_EMAIL?: string; NOTIFY_FROM?: string; APP_URL?: string;
 };
 type Interview = { phase: 'pending' | 'scheduled' | 'feedback'; at: string; location: string };
 export type Company = {
@@ -308,22 +309,10 @@ export async function sendReminders(env: Bindings, now: number): Promise<void> {
         const when = new Date(atMs).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
         const roles = String(r.roles || '');
         const location = m.location || '待补充';
-        const isT1 = type === 't1';
-        const lead = isT1
-            ? `这场面试在<strong>明天</strong>，今晚可以再过一遍项目细节与高频考点。`
-            : `这场面试就在<strong>今天</strong>，距开始约 <strong>${Math.max(1, Math.round(hoursLeft))} 小时</strong>，请提前做好准备。`;
-        const subject = `${isT1 ? '【明日面试提醒】' : '【今日面试提醒】'}${String(r.name)} ${String(r.status)} · ${when}`;
-        const html = `<div style="font-family:system-ui,'PingFang SC',sans-serif;max-width:560px;color:#242726">
-            <h2 style="color:#c55333;margin:0 0 12px">${isT1 ? '明日面试提醒' : '今日面试提醒'}</h2>
-            <p>${lead}</p>
-            <table style="border-collapse:collapse;font-size:14px">
-              <tr><td style="padding:4px 12px 4px 0;color:#687060">公司</td><td><strong>${escapeHtml(String(r.name))}</strong></td></tr>
-              <tr><td style="padding:4px 12px 4px 0;color:#687060">轮次</td><td>${escapeHtml(String(r.status))}</td></tr>
-              <tr><td style="padding:4px 12px 4px 0;color:#687060">时间</td><td>${escapeHtml(when)}（北京时间）</td></tr>
-              <tr><td style="padding:4px 12px 4px 0;color:#687060">地点 / 链接</td><td>${escapeHtml(location)}</td></tr>
-            </table>
-            <p style="margin-top:16px;font-size:12px;color:#687060">岗位：${escapeHtml(roles)} · 来自「投递 · 求职工作台」</p>
-        </div>`;
+        const { subject, html } = renderReminderEmail({
+            type, name: String(r.name), status: String(r.status), when, location, roles,
+            hoursLeft, appUrl: env.APP_URL || 'https://toudi-guanli.wangjiangtao1997.workers.dev',
+        });
         try {
             const res = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
@@ -336,7 +325,6 @@ export async function sendReminders(env: Bindings, now: number): Promise<void> {
         } catch (e) { console.error('Reminder email error', e); }
     }
 }
-function escapeHtml(s: string): string { return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] || ch)); }
 
 export { app };
 export default {

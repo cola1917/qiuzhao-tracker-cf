@@ -7,3 +7,5 @@ RESEND_API_KEY=
 NOTIFY_EMAIL=
 # Verified sender. Resend's default onboarding@resend.dev only sends to the account owner's email.
 # NOTIFY_FROM=投递工作台 <onboarding@resend.dev>
+# Public URL of the deployed worker, used by the "打开工作台" button in reminder emails.
+# APP_URL=https://toudi-guanli.wangjiangtao1997.workers.dev
