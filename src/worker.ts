@@ -298,23 +298,31 @@ export async function sendReminders(env: Bindings, now: number): Promise<void> {
     for (const r of due) {
         const m = JSON.parse(String(r.interview)) as { at: string; location: string };
         const atMs = Date.parse(m.at);
-        // Dedup: never send the same interview reminder twice.
+        // T-1 (24~48h away) and T-0 (same day, <24h) are two distinct reminders for one interview.
+        const hoursLeft = (atMs - now) / 3600000;
+        const type = hoursLeft >= 24 ? 't1' : 'd0';
+        const channel = `email:${type}`;
         const dup = await env.DB.prepare('SELECT 1 FROM interview_reminders WHERE company_id = ? AND interview_at = ? AND channel = ?')
-            .bind(String(r.id), atMs, 'email').first();
+            .bind(String(r.id), atMs, channel).first();
         if (dup) continue;
         const when = new Date(atMs).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
         const roles = String(r.roles || '');
-        const subject = `面试提醒：${String(r.name)} ${String(r.status)} · ${when}`;
+        const location = m.location || '待补充';
+        const isT1 = type === 't1';
+        const lead = isT1
+            ? `这场面试在<strong>明天</strong>，今晚可以再过一遍项目细节与高频考点。`
+            : `这场面试就在<strong>今天</strong>，距开始约 <strong>${Math.max(1, Math.round(hoursLeft))} 小时</strong>，请提前做好准备。`;
+        const subject = `${isT1 ? '【明日面试提醒】' : '【今日面试提醒】'}${String(r.name)} ${String(r.status)} · ${when}`;
         const html = `<div style="font-family:system-ui,'PingFang SC',sans-serif;max-width:560px;color:#242726">
-            <h2 style="color:#c55333;margin:0 0 12px">面试提醒</h2>
-            <p>你有一场面试即将到来：</p>
+            <h2 style="color:#c55333;margin:0 0 12px">${isT1 ? '明日面试提醒' : '今日面试提醒'}</h2>
+            <p>${lead}</p>
             <table style="border-collapse:collapse;font-size:14px">
               <tr><td style="padding:4px 12px 4px 0;color:#687060">公司</td><td><strong>${escapeHtml(String(r.name))}</strong></td></tr>
               <tr><td style="padding:4px 12px 4px 0;color:#687060">轮次</td><td>${escapeHtml(String(r.status))}</td></tr>
               <tr><td style="padding:4px 12px 4px 0;color:#687060">时间</td><td>${escapeHtml(when)}（北京时间）</td></tr>
-              <tr><td style="padding:4px 12px 4px 0;color:#687060">地点 / 链接</td><td>${escapeHtml(m.location || '待补充')}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#687060">地点 / 链接</td><td>${escapeHtml(location)}</td></tr>
             </table>
-            <p style="margin-top:16px;font-size:12px;color:#687060">岗位：${escapeHtml(roles)}</p>
+            <p style="margin-top:16px;font-size:12px;color:#687060">岗位：${escapeHtml(roles)} · 来自「投递 · 求职工作台」</p>
         </div>`;
         try {
             const res = await fetch('https://api.resend.com/emails', {
@@ -324,7 +332,7 @@ export async function sendReminders(env: Bindings, now: number): Promise<void> {
             });
             if (!res.ok) { console.error('Resend send failed', res.status, await res.text()); continue; }
             await env.DB.prepare('INSERT OR IGNORE INTO interview_reminders (company_id, interview_at, channel, sent_at) VALUES (?, ?, ?, ?)')
-                .bind(String(r.id), atMs, 'email', now).run();
+                .bind(String(r.id), atMs, channel, now).run();
         } catch (e) { console.error('Reminder email error', e); }
     }
 }

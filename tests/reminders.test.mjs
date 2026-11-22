@@ -25,13 +25,48 @@ test('scheduled email reminders only cover upcoming interviews and never duplica
         await sendReminders(env, Date.now());
         assert.equal(sent.length, 1, 'only the interview within 48h should be emailed');
         assert.equal(sent[0].body.to, 'me@example.com');
+        assert.match(sent[0].body.subject, /今日面试提醒/);
         assert.match(sent[0].body.subject, /soon/);
         assert.equal(env.DB.db.prepare('SELECT COUNT(*) AS n FROM interview_reminders').get().n, 1);
+        assert.equal(env.DB.db.prepare('SELECT channel FROM interview_reminders').get().channel, 'email:d0');
 
         // A second run must not send a duplicate for the same interview.
         sent.length = 0;
         await sendReminders(env, Date.now());
         assert.equal(sent.length, 0, 'duplicate reminder should be skipped');
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+});
+
+test('the same interview gets both T-1 and T-0 reminders at different times', async () => {
+    const env = environment();
+    const in30h = Date.now() + 30 * 3600000;
+    await request(env, '/api/data', 'PUT', { revision: 0, roles: [], companies: [
+        { ...company('x'), status: '一面', interview: { phase: 'scheduled', at: new Date(in30h).toISOString(), location: '线上' } },
+    ] });
+
+    const sent = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => {
+        sent.push(JSON.parse(opts.body));
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+    try {
+        env.RESEND_API_KEY = 're_test';
+        env.NOTIFY_EMAIL = 'me@example.com';
+        // 30h away -> T-1 (明日面试提醒)
+        await sendReminders(env, Date.now());
+        assert.equal(sent.length, 1);
+        assert.match(sent[0].subject, /明日面试提醒/);
+
+        // 6h away -> T-0 (今日面试提醒), same interview, different type
+        sent.length = 0;
+        await sendReminders(env, in30h - 6 * 3600000);
+        assert.equal(sent.length, 1);
+        assert.match(sent[0].subject, /今日面试提醒/);
+
+        assert.equal(env.DB.db.prepare('SELECT COUNT(*) AS n FROM interview_reminders').get().n, 2);
     } finally {
         globalThis.fetch = realFetch;
     }
