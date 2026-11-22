@@ -8,4 +8,6 @@ dist
 .dev.vars.*
 .npm-cache
 artifacts
+playwright-report
+test-results
 !.dev.vars.example

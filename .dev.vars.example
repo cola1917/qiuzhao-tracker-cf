@@ -1,1 +1,9 @@
 # No application access token is required. Authentication is provided by Cloudflare Access.
+
+# Email interview reminders (Cloudflare Cron -> Resend). All optional; reminders are a no-op if unset.
+# Get a free key at https://resend.com (free tier: 3000 emails/month).
+RESEND_API_KEY=
+# Recipient of the reminder emails (your own mailbox).
+NOTIFY_EMAIL=
+# Verified sender. Resend's default onboarding@resend.dev only sends to the account owner's email.
+# NOTIFY_FROM=投递工作台 <onboarding@resend.dev>

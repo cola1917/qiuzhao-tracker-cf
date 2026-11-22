@@ -17,3 +17,7 @@ ENVIRONMENT = "production"
 
 [ai]
 binding = "AI"
+
+# Daily cron (UTC 00:00 = 08:00 Beijing) checks upcoming interviews and sends email reminders via Resend.
+[triggers]
+crons = ["0 0 * * *"]

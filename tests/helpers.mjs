@@ -1,11 +1,17 @@
-import app from '../src/worker.ts';
+import { app } from '../src/worker.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 export function database() {
     const db = new DatabaseSync(':memory:');
-    for (const name of ['0001_init.sql', '0003_sync.sql', '0004_workbench.sql', '0005_interview_notes.sql'])
+    for (const name of ['0001_init.sql', '0003_sync.sql', '0004_workbench.sql', '0005_interview_notes.sql', '0007_notifications.sql'])
         db.exec(readFileSync(new URL('../migrations/' + name, import.meta.url), 'utf8'));
-    const prepare = (sql, values = []) => ({ bind: (...args) => prepare(sql, args), sql, values });
+    const prepare = (sql, values = []) => ({
+        bind: (...args) => prepare(sql, args),
+        sql, values,
+        async first() { const rows = db.prepare(sql).all(...values); return rows[0] ?? null; },
+        async all() { return { results: db.prepare(sql).all(...values) }; },
+        async run() { const info = db.prepare(sql).run(...values); return { changes: Number(info.changes) }; },
+    });
     return { db, prepare, async batch(statements) { db.exec('BEGIN'); try {
             const result = statements.map(({ sql, values }) => { const stmt = db.prepare(sql); if (stmt.columns().length)
                 return { results: stmt.all(...values), meta: { changes: 0 } }; const info = stmt.run(...values); return { results: [], meta: { changes: Number(info.changes) } }; });

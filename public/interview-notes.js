@@ -161,8 +161,8 @@ function extractHotKeywords(notes=state.notes||[]) {
                 }
             }
         }
-        // 2. Explicit #tags
-        for(const m of full.matchAll(/#([\u4e00-\u9fa5a-zA-Z0-9_+-]{2,16})/g)){
+        // 2. Explicit #tags (exclude markdown headings like ## and ###)
+        for(const m of full.replace(/^#{1,6}\s.*$/gm, '').matchAll(/#([\u4e00-\u9fa5a-zA-Z0-9_+-]{2,16})/g)){
             addTopic(m[1], m[1], n.id, true);
             coveredRanges.push(m[1].toLowerCase());
         }
@@ -172,7 +172,8 @@ function extractHotKeywords(notes=state.notes||[]) {
             let phrase=seg.trim();
             while(ACTION_PREFIX.test(phrase))phrase=phrase.replace(ACTION_PREFIX,'').trim();
             phrase=phrase.replace(/^(?:的|了|和|与|及|或)\s*/,'').replace(/\s*(?:等|等等|方面|问题|部分)$/,'').trim();
-            if(phrase.length<2||phrase.length>12||STOP_WORDS.has(phrase)||STOP_WORDS.has(phrase.toLowerCase())||NARRATIVE_NOISE.test(phrase))continue;
+            const NARRATIVE = /(很|非常|太|比较|挺|蛮|还算|沟通|思路|顺畅|顺利|不错|尴尬|紧张|感觉|觉得|应该|可能|已经|还是|就是|而已|什么的|之类的|了$|着$|过$)/;
+            if(phrase.length<2||phrase.length>10||STOP_WORDS.has(phrase)||STOP_WORDS.has(phrase.toLowerCase())||NARRATIVE_NOISE.test(phrase)||NARRATIVE.test(phrase)||/[，。,\s]/.test(phrase))continue;
             const cluster=findCluster(phrase);
             const inBold=boldSpans.some(b=>b.includes(phrase.toLowerCase()));
             if(cluster){

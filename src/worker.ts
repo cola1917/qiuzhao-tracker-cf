@@ -3,7 +3,10 @@ import roleAliases from './role-aliases.ts';
 const canonicalRole = (role: string) => Object.hasOwn(roleAliases,role) ? (roleAliases as Record<string,string>)[role] : role;
 const canonicalRoles = (roles: string[]) => [...new Set(roles.map(canonicalRole))];
 type AiBinding = { run: (model: string, input: Record<string, unknown>) => Promise<unknown> };
-type Bindings = { DB: D1Database; ASSETS: Fetcher; AI?: AiBinding };
+type Bindings = {
+    DB: D1Database; ASSETS: Fetcher; AI?: AiBinding;
+    RESEND_API_KEY?: string; NOTIFY_EMAIL?: string; NOTIFY_FROM?: string;
+};
 type Interview = { phase: 'pending' | 'scheduled' | 'feedback'; at: string; location: string };
 export type Company = {
     id: string; name: string; link: string; deadline: string; roles: string[]; dept: string;
@@ -276,4 +279,61 @@ app.post('/api/ai/topics', async c => {
 });
 app.onError((e,c)=>{console.error(e);return c.json({error:'服务暂时不可用，请保留本地备份后重试'},500);});
 app.get('*',c=>c.env.ASSETS.fetch(c.req.raw));
-export default app;
+
+// Cron: send email reminders for interviews scheduled within the next 48 hours via Resend.
+export async function sendReminders(env: Bindings, now: number): Promise<void> {
+    const apiKey = env.RESEND_API_KEY, to = env.NOTIFY_EMAIL;
+    if (!apiKey || !to) return; // Graceful no-op when notifications are not configured.
+    const from = env.NOTIFY_FROM || '投递工作台 <onboarding@resend.dev>';
+    const lookahead = now + 48 * 3600000;
+    const result = await env.DB.batch<Record<string, unknown>>([env.DB.prepare(`SELECT c.id, c.name, c.status, c.interview, c.roles
+        FROM companies c WHERE c.deleted_at = 0 AND c.interview IS NOT NULL`)]);
+    const due = result[0].results.filter(r => {
+        try {
+            const m = JSON.parse(String(r.interview || '{}')) as { phase?: string; at?: string };
+            const t = m.at ? Date.parse(m.at) : NaN;
+            return m.phase === 'scheduled' && Number.isFinite(t) && t >= now && t <= lookahead;
+        } catch { return false; }
+    });
+    for (const r of due) {
+        const m = JSON.parse(String(r.interview)) as { at: string; location: string };
+        const atMs = Date.parse(m.at);
+        // Dedup: never send the same interview reminder twice.
+        const dup = await env.DB.prepare('SELECT 1 FROM interview_reminders WHERE company_id = ? AND interview_at = ? AND channel = ?')
+            .bind(String(r.id), atMs, 'email').first();
+        if (dup) continue;
+        const when = new Date(atMs).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+        const roles = String(r.roles || '');
+        const subject = `面试提醒：${String(r.name)} ${String(r.status)} · ${when}`;
+        const html = `<div style="font-family:system-ui,'PingFang SC',sans-serif;max-width:560px;color:#242726">
+            <h2 style="color:#c55333;margin:0 0 12px">面试提醒</h2>
+            <p>你有一场面试即将到来：</p>
+            <table style="border-collapse:collapse;font-size:14px">
+              <tr><td style="padding:4px 12px 4px 0;color:#687060">公司</td><td><strong>${escapeHtml(String(r.name))}</strong></td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#687060">轮次</td><td>${escapeHtml(String(r.status))}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#687060">时间</td><td>${escapeHtml(when)}（北京时间）</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#687060">地点 / 链接</td><td>${escapeHtml(m.location || '待补充')}</td></tr>
+            </table>
+            <p style="margin-top:16px;font-size:12px;color:#687060">岗位：${escapeHtml(roles)}</p>
+        </div>`;
+        try {
+            const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+                body: JSON.stringify({ from, to, subject, html }),
+            });
+            if (!res.ok) { console.error('Resend send failed', res.status, await res.text()); continue; }
+            await env.DB.prepare('INSERT OR IGNORE INTO interview_reminders (company_id, interview_at, channel, sent_at) VALUES (?, ?, ?, ?)')
+                .bind(String(r.id), atMs, 'email', now).run();
+        } catch (e) { console.error('Reminder email error', e); }
+    }
+}
+function escapeHtml(s: string): string { return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] || ch)); }
+
+export { app };
+export default {
+    fetch: app.fetch,
+    async scheduled(_controller: ScheduledController, env: Bindings, ctx: ExecutionContext) {
+        ctx.waitUntil(sendReminders(env, Date.now()));
+    },
+};

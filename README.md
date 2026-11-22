@@ -89,7 +89,7 @@
 采用暖白（`#f8f7f3`）与陶土橙（`#c55333`）编辑室风格配色。默认按**固定记录顺序（新增在前）**展示，编辑、加星标与刷新均不打乱既有行位置；顶部统计卡片直接筛选全部、待投、进行中与 Offer。
 
 <div align="center">
-  <img src="docs/images/workbench.webp" alt="投递工作台主视图，图中为虚构示例数据" width="100%" />
+  <img src="docs/images/workbench.png" alt="投递工作台主视图，图中为虚构示例数据" width="100%" />
 </div>
 
 ### 2. 独立「面试复盘与历程」视图（AI 全局总览 + 高频考点筛选）
@@ -97,7 +97,7 @@
 汇总所有公司的面经、复盘与碎碎念。顶部由 **本地语义聚类 + Cloudflare Workers AI** 生成跨场次全局复盘总览与高频考点词条，点击任意考点即可过滤下方复盘卡片并高亮命中的原文片段，支持原地展开 Markdown 编辑器或删除记录。
 
 <div align="center">
-  <img src="docs/images/reviews.svg" alt="面试复盘与历程独立视图，图中为虚构示例数据" width="100%" />
+  <img src="docs/images/reviews.png" alt="面试复盘与历程独立视图，图中为虚构示例数据" width="100%" />
 </div>
 
 ### 3. 行内进展时间线与独立约面面板
@@ -105,7 +105,7 @@
 点击任意公司右侧的 `历史 ⌄`，即可在行内展开该公司的完整进展时间线、补充或修改面试时间与飞书/腾讯会议链接，并直接关联具体轮次撰写面试复盘。
 
 <div align="center">
-  <img src="docs/images/timeline.webp" alt="行内进展时间线，图中为虚构示例数据" width="82%" />
+  <img src="docs/images/timeline.png" alt="行内进展时间线，图中为虚构示例数据" width="82%" />
 </div>
 
 ---
@@ -186,14 +186,35 @@ npm run db:migrate:remote
 npm run deploy
 ```
 
-### 4. 配置 GitHub Actions 自动部署（可选）
+### 4. 配置面试邮件提醒（可选）
+
+项目内置 **Cloudflare Cron 定时任务**（`wrangler.toml` 中每天 UTC 00:00，即北京时间 08:00），会自动扫描未来 48 小时内已确定时间的面试，通过 **Resend** 发一封提醒邮件。免费层每月 3000 封，个人使用完全够。
+
+1. 在 [Resend](https://resend.com) 注册并创建一个 API Key。
+2. 用 Wrangler 配置密钥（不会写进代码或 Git）：
+
+```sh
+npx wrangler secret put RESEND_API_KEY   # 粘贴 Resend API Key
+npx wrangler secret put NOTIFY_EMAIL     # 收件邮箱（你自己的邮箱）
+```
+
+3. 重新部署即可生效：
+
+```sh
+npm run db:migrate:remote   # 首次需创建 interview_reminders 去重表
+npm run deploy
+```
+
+> 若某个面试通知已经发过，系统会记录去重，不会重复发送；未配置密钥时该功能自动静默跳过，不影响其它功能。如需自定义发件人（需 Resend 验证域名），可再设置 `NOTIFY_FROM`。
+
+### 5. 配置 GitHub Actions 自动部署（可选）
 
 在 GitHub 仓库 `Settings → Secrets and variables → Actions` 中添加以下两个 Secret：
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
-推送到 `main` 分支后，工作流会自动串行执行：`npm ci` → `typecheck` → `51 项回归测试` → `build 预检` → `D1 远程迁移` → `Worker 发布`。
+推送到 `main` 分支后，工作流会自动串行执行：`npm ci` → `typecheck` → `回归测试` → `build 预检` → `D1 远程迁移` → `Worker 发布`。
 
 <details>
 <summary><b>📦 已有项目升级与数据库迁移说明（点击展开）</b></summary>
@@ -210,6 +231,7 @@ npm run deploy
 | `0004_workbench.sql` | 星标（`starred`）、回收站（`deleted_at`）、面试安排（`interview`）与独立历史表（`company_history`） |
 | `0005_interview_notes.sql` | 独立面试笔记表（`interview_notes`），支持绑定具体面试事件锚点 |
 | `0006_merge_role_names.sql` | 同义岗位标准名称归并，自动迁移正常投递与回收站中的岗位关联 |
+| `0007_notifications.sql` | 面试邮件提醒去重表（`interview_reminders`），防止 Cron 重复发送 |
 
 </details>
 
@@ -218,11 +240,12 @@ npm run deploy
 ## 🧪 测试与构建验证
 
 ```sh
-npm run check   # 执行 TypeScript 类型检查 (tsc --noEmit) + 51 项独立 SQLite 与前端回归测试
-npm run build   # 执行 Wrangler 生产打包预检 (--dry-run)，输出至 dist/
+npm run check      # TypeScript 类型检查 + 55 项独立 SQLite/前端回归测试
+npm run test:e2e   # Playwright 端到端测试（6 项，真实浏览器；首次需 npx playwright install chromium）
+npm run build      # Wrangler 生产打包预检 (--dry-run)，输出至 dist/
 ```
 
-测试套件完全基于隔离的内存 SQLite 与 VM 沙箱运行，不触碰线上数据库，完整覆盖：
+测试套件完全基于隔离的内存 SQLite 与 VM 沙箱运行，不触碰线上数据库；E2E 则通过 `scripts/preview.mjs` 的独立预览服务驱动真实浏览器，完整覆盖：
 - 乐观锁版本冲突（`409`）与离线草稿恢复
 - D1 批量事务失败自动回滚（`BEGIN ... ROLLBACK`）
 - 快速连续切换状态与约面的操作队列（`activity`）保真
@@ -276,9 +299,13 @@ qiuzhao-tracker-cf/
 ├── src/
 │   ├── worker.ts            # Hono API、数据快照校验、D1 事务同步与 Workers AI 路由
 │   └── role-aliases.ts      # 岗位同义名称归并映射表
-├── migrations/              # D1 SQLite 数据库增量迁移脚本 (0001 ~ 0006)
-├── tests/                   # Node.js 测试套件（API、工作台事务与前端沙箱回归测试）
+├── tests/                   # Node.js 测试套件（API、工作台事务、通知与前端沙箱回归测试）
+├── e2e/                     # Playwright 端到端测试（真实浏览器关键流程）
 ├── scripts/
-│   └── preview.mjs          # 零配置的本地内存 SQLite 隔离预览服务
+│   ├── preview.mjs          # 零配置的本地内存 SQLite 隔离预览服务
+│   ├── screenshots.mjs      # 从预览服务生成 README 截图
+│   └── style-preview.mjs    # 主题样式预览
+├── migrations/              # D1 SQLite 数据库增量迁移脚本 (0001 ~ 0007)
+├── playwright.config.js     # Playwright E2E 配置
 └── docs/images/             # README 横幅与功能预览图
 ```

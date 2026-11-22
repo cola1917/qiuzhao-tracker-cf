@@ -1,6 +1,6 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
-import app from '../src/worker.ts';
+import { app } from '../src/worker.ts';
 import {database,company} from '../tests/helpers.mjs';
 const DB=database();
 const roles=['机器人算法','软件开发','AI Infra'];
