@@ -278,7 +278,38 @@ app.post('/api/ai/topics', async c => {
     const summary = typeof parsed.summary === 'string' ? parsed.summary.trim().slice(0, 240) : '';
     return c.json({ topics: topics.slice(0, 10), summary, model: usedModel });
 });
-app.onError((e,c)=>{console.error(e);return c.json({error:'服务暂时不可用，请保留本地备份后重试'},500);});
+let lastErrorReport = 0;
+async function reportError(c: { env: Bindings }, error: unknown, path: string): Promise<void> {
+    const key = c.env.RESEND_API_KEY, to = c.env.NOTIFY_EMAIL;
+    if (!key || !to) return;
+    const now = Date.now();
+    if (now - lastErrorReport < 5 * 60000) return; // throttle: at most one per 5 minutes per isolate
+    lastErrorReport = now;
+    const detail = error instanceof Error ? `${error.message}\n${error.stack || ''}` : String(error);
+    try {
+        await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+            body: JSON.stringify({
+                from: c.env.NOTIFY_FROM || '投递工作台 <onboarding@resend.dev>',
+                to,
+                subject: `【系统异常】投递工作台 · ${new Date().toISOString().slice(0, 16)}`,
+                html: `<div style="font-family:system-ui,'PingFang SC',sans-serif;color:#242726;max-width:600px">
+                  <h2 style="color:#b74339;margin:0 0 12px">Worker 运行异常</h2>
+                  <p style="font-size:13px;color:#687060">路径：${escapeHtml(path)}</p>
+                  <pre style="background:#f8f7f3;padding:12px;border-radius:4px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(detail)}</pre>
+                </div>`,
+            }),
+        });
+    } catch { /* never let error reporting break the response */ }
+}
+function escapeHtml(s: string): string { return String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] || ch)); }
+app.onError((e,c)=>{
+    console.error(e);
+    // In Cloudflare, executionCtx exists; in the test harness (app.request) it does not — skip there.
+    try { c.executionCtx.waitUntil(reportError(c, e, c.req.path)); } catch { void reportError(c, e, c.req.path); }
+    return c.json({error:'服务暂时不可用，请保留本地备份后重试'},500);
+});
 app.get('*',c=>c.env.ASSETS.fetch(c.req.raw));
 
 // Cron: send email reminders for interviews scheduled within the next 48 hours via Resend.

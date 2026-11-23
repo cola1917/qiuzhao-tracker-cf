@@ -210,7 +210,7 @@ npm run db:migrate:remote   # 首次需创建 interview_reminders 去重表
 npm run deploy
 ```
 
-> 若某个面试通知已经发过，系统会记录去重，不会重复发送；未配置密钥时该功能自动静默跳过，不影响其它功能。如需自定义发件人（需 Resend 验证域名），可再设置 `NOTIFY_FROM`。
+> 若某个面试通知已经发过，系统会记录去重，不会重复发送；未配置密钥时该功能自动静默跳过，不影响其它功能。如需自定义发件人（需 Resend 验证域名），可再设置 `NOTIFY_FROM`。同一套 Resend 配置还用于**线上异常上报**：Worker 发生未捕获错误时会自动把错误详情发到 `NOTIFY_EMAIL`（每个 isolate 每 5 分钟最多一封，避免刷屏），帮你及时发现线上问题。
 
 ### 5. 配置 GitHub Actions 自动部署（可选）
 
