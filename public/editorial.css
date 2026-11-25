@@ -131,6 +131,10 @@ td{padding:9px 10px;border-color:var(--line)}
 .role-chip{background:var(--soft);color:var(--muted);font-size:9px;border-radius:2px;padding:2px 5px}
 .role-menu{border-radius:3px}
 .tablefoot{border-bottom:1px solid var(--line);padding:12px 0;font-size:9px}
+.table-pager{display:flex;align-items:center;gap:10px;font-size:12px}
+.table-pager .text-btn{padding:2px 4px;color:var(--accent-deep);white-space:nowrap}
+.table-pager .text-btn:disabled{color:var(--muted);opacity:.45;cursor:default}
+.table-pager span{color:var(--muted);font-variant-numeric:tabular-nums}
 .pagefoot{font-size:9px;letter-spacing:.3px}
 @media(min-width:1600px){.content{padding-top:5px}
 .stat{padding-top:23px;padding-bottom:23px}

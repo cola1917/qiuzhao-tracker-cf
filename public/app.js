@@ -7,6 +7,7 @@ const emptyState = () => ({ v: 3, revision: 0, roles: [...DEFAULT_ROLES], compan
 let state = emptyState(), mode = 'loading', dirty = false, saving = false, generation = 0, timer, blocked = false, pending = null;
 let view = 'all';
 let heatmapYear = new Date().getFullYear();
+let companyPage = 0, companyPageSize = 6;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const days = date => date ? Math.round((Date.parse(date + 'T00:00:00') - Date.parse(today() + 'T00:00:00')) / 86400000) : null;
@@ -278,11 +279,18 @@ function sortCompanies(list, sort) {
         result.sort((a, b) => STATUSES.indexOf(b.status) - STATUSES.indexOf(a.status));
     return result;
 }
+function paginateList(list) {
+    const totalPages = companyPageSize ? Math.max(1, Math.ceil(list.length / companyPageSize)) : 1;
+    companyPage = Math.max(0, Math.min(companyPage, totalPages - 1));
+    const start = companyPageSize ? companyPage * companyPageSize : 0;
+    return { items: companyPageSize ? list.slice(start, start + companyPageSize) : list, totalPages };
+}
 function renderTable() {
     const query = $('q').value.trim().toLowerCase(), status = $('statusfilter').value;
     const list = sortCompanies(state.companies.filter(co => (!$('starfilter').checked||co.starred) && (view === 'all' || view === 'todo' && co.status === '未投' || view === 'live' && LIVE.includes(co.status) || view === 'oc' && co.status === 'OC') && (!status || co.status === status) && (!query || [co.name, co.dept, co.note, ...co.roles].join(' ').toLowerCase().includes(query))), $('sort').value);
+    const { items: pageItems, totalPages } = paginateList(list);
     $('view-title').innerHTML = ({ all: '全部投递', todo: '待投清单', live: '进行中', oc: '收获 Offer' }[view]) + ` <span>${list.length}</span>`;
-    $('rows').innerHTML = list.map(co => {
+    $('rows').innerHTML = pageItems.map(co => {
         const remaining = days(co.deadline);
         const input = (field, placeholder = '', type = 'text') => {
             const markup = `<input class="inline-input ${field === 'name' ? 'company-name' : ''}" data-field="${field}" data-id="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} ${({ name: '公司名称', link: '投递链接', dept: '部门', deadline: '截止日期', appliedAt: '投递时间', note: '备注' })[field]}" type="${type}" ${type === 'date' ? 'lang="zh-CN"' : ''} value="${esc(co[field])}" placeholder="${placeholder}" maxlength="${field === 'note' ? 5000 : 2000}">`;
@@ -294,7 +302,17 @@ function renderTable() {
     $('rows').closest('table').hidden = !list.length;
     $('empty').querySelector('h3').textContent = state.companies.length ? '没有匹配的投递' : '下一份机会，从这里开始';
     $('empty').querySelector('p').textContent = state.companies.length ? '试试其他关键词，或调整筛选条件。' : '记下感兴趣的公司，让每一次投递都有迹可循。';
-    $('footcount').textContent = `显示 ${list.length} 条 / 共 ${state.companies.length} 条记录`;
+    $('footcount').textContent = companyPageSize && list.length > companyPageSize ? `第 ${companyPage + 1} / ${totalPages} 页 · 筛选出 ${list.length} 条` : `显示 ${list.length} 条 / 共 ${state.companies.length} 条记录`;
+    const pager = $('table-pager');
+    if (pager) {
+        if (!companyPageSize) {
+            pager.innerHTML = list.length > 6 ? `<button type="button" class="text-btn" data-paginate>分页显示</button>` : '';
+        } else if (totalPages > 1) {
+            pager.innerHTML = `<button type="button" class="text-btn" data-page-prev ${companyPage === 0 ? 'disabled' : ''} aria-label="上一页">‹ 上一页</button><span>${companyPage + 1} / ${totalPages}</span><button type="button" class="text-btn" data-page-next ${companyPage >= totalPages - 1 ? 'disabled' : ''} aria-label="下一页">下一页 ›</button><button type="button" class="text-btn" data-page-all>查看全部</button>`;
+        } else {
+            pager.innerHTML = '';
+        }
+    }
 }
 function statusClass(status) { return status === 'OC' ? 'oc' : LIVE.includes(status) ? 'live' : status === '已投' ? 'sent' : status === '已挂' ? 'out' : ''; }
 function dueText(date) { const n = days(date); return n === null ? '' : n < 0 ? '已截止' : n === 0 ? '今天截止' : '剩余 ' + n + ' 天'; }
@@ -311,6 +329,7 @@ function addCompany() {
     touchCompany(co);
     state.companies.unshift(co);
     view = 'all';
+    companyPage = 0;
     $('q').value = '';
     $('statusfilter').value = '';
     $('sort').value = 'added';
@@ -338,9 +357,19 @@ async function backup(data = state) {
 }
 $('add').onclick = $('empty-add').onclick = addCompany;
 document.addEventListener('click', e => {
+    const pagerButton = e.target.closest('[data-page-prev], [data-page-next], [data-page-all], [data-paginate]');
+    if (pagerButton && !pagerButton.disabled) {
+        if (pagerButton.hasAttribute('data-page-prev')) companyPage = Math.max(0, companyPage - 1);
+        if (pagerButton.hasAttribute('data-page-next')) companyPage += 1;
+        if (pagerButton.hasAttribute('data-page-all')) { companyPageSize = 0; companyPage = 0; }
+        if (pagerButton.hasAttribute('data-paginate')) { companyPageSize = 6; companyPage = 0; }
+        render();
+        return;
+    }
     const nav = e.target.closest('[data-view]');
     if (nav) {
         view = nav.dataset.view;
+        companyPage = 0;
         document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === view));
         $('q').value='';$('starfilter').checked=false;
         $('statusfilter').value = '';
@@ -352,6 +381,7 @@ document.addEventListener('click', e => {
         $('q').value = '';
         $('statusfilter').value = '';
         document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === 'all'));
+        companyPage = companyPageSize ? Math.max(0, Math.floor(sortCompanies(state.companies, 'added').findIndex(c => c.id === jump.dataset.edit) / companyPageSize)) : 0;
         render();
         const input = document.querySelector('[data-row="' + jump.dataset.edit + '"] [data-field="name"]');
         input?.focus();
@@ -450,7 +480,7 @@ $('rows').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.m
     e.target.parentElement.querySelector('button').click();
 } });
 for (const id of ['q', 'statusfilter', 'sort'])
-    $(id).addEventListener(id === 'q' ? 'input' : 'change', render);
+    $(id).addEventListener(id === 'q' ? 'input' : 'change', () => { companyPage = 0; render(); });
 $('statusfilter').insertAdjacentHTML('beforeend', STATUSES.map(s => `<option>${s}</option>`).join(''));
 $('expjson').onclick = () => backup();
 $('expcsv').onclick = () => { const cell = value => '"' + (/^[=+\-@\t\r\n]/.test(String(value)) ? "'" : '') + String(value ?? '').replace(/"/g, '""') + '"'; const rows = [['公司', '岗位', '部门', '状态', '截止日期', '投递时间', '链接', '备注'], ...state.companies.map(c => [c.name, c.roles.join(' / '), c.dept, c.status, c.deadline, c.appliedAt, c.link, c.note])]; download('投递记录-' + today() + '.csv', '\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n'), 'text/csv;charset=utf-8'); };

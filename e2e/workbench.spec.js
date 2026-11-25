@@ -12,9 +12,9 @@ test('dashboard renders stats, company table and heatmap', async ({ page }) => {
     await expect(page.locator('#rows tr[data-row]')).toHaveCount(6);
     await expect(page.locator('#view-title')).toContainText('全部投递');
 
-    // Heatmap is collapsed by default; summary is visible before expanding it.
+    // Heatmap is expanded by default and the collapsed summary carries the totals.
+    await expect(page.locator('#heatmap-details')).toHaveAttribute('open', '');
     await expect(page.locator('#heatmap-summary')).toContainText('份投递');
-    await page.locator('#heatmap-details > summary').click();
     // Heatmap: current calendar year, navigation, labels and square cells.
     await expect(page.locator('#heatmap-year')).toHaveText(String(new Date().getFullYear()));
     await expect(page.locator('#heatmap .heat-cell').first()).toBeVisible();
@@ -25,7 +25,6 @@ test('dashboard renders stats, company table and heatmap', async ({ page }) => {
 
 test('heatmap year navigation switches the displayed year', async ({ page }) => {
     const year = new Date().getFullYear();
-    await page.locator('#heatmap-details > summary').click();
     await page.locator('#heat-prev').click();
     await expect(page.locator('#heatmap-year')).toHaveText(String(year - 1));
     await expect(page.locator('#heatmap-summary')).toContainText(`${year - 1} 年共`);
@@ -33,14 +32,17 @@ test('heatmap year navigation switches the displayed year', async ({ page }) => 
     await expect(page.locator('#heatmap-year')).toHaveText(String(year));
 });
 
-test('add a company inline and it persists in the table', async ({ page }) => {
-    const before = await page.locator('#rows tr[data-row]').count();
+test('add a company inline and paginate to the next page', async ({ page }) => {
     await page.locator('#add').click();
     const nameInput = page.locator('#rows tr[data-row]').first().locator('[data-field="name"]');
     await nameInput.fill('E2E 测试公司');
     await nameInput.press('Tab'); // blur to commit value
     await expect(nameInput).toHaveValue('E2E 测试公司');
-    await expect(page.locator('#rows tr[data-row]')).toHaveCount(before + 1);
+    await expect(page.locator('#footcount')).toContainText('筛选出 7 条');
+    await expect(page.locator('#table-pager')).toContainText('1 / 2');
+    await expect(page.locator('#rows tr[data-row]')).toHaveCount(6);
+    await page.locator('[data-page-next]').click();
+    await expect(page.locator('#rows tr[data-row]')).toHaveCount(1);
 });
 
 test('search filters companies', async ({ page }) => {

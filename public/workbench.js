@@ -127,16 +127,19 @@ function renderBulkPreview() {
     $('bulk-confirm').textContent=`新增 ${count} 条`;$('bulk-confirm').disabled=!count||count>100||state.companies.length+count>2000;
 }
 function newCompany(name='') {return {id:crypto.randomUUID(),name,link:'',deadline:'',appliedAt:'',roles:[],dept:'',status:'未投',note:'',starred:false,deletedAt:0,interview:emptyInterview()};}
-function resetFilters() {view='all';$('q').value='';$('statusfilter').value='';$('starfilter').checked=false;$('sort').value='added';document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view==='all'));}
+function resetFilters() {view='all';companyPage=0;$('q').value='';$('statusfilter').value='';$('starfilter').checked=false;$('sort').value='added';document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view==='all'));}
 async function openCompany(id) {
     if(typeof switchPage==='function')switchPage('workbench',false);
-    openedCompany=id;resetFilters();render();
+    openedCompany=id;
+    resetFilters();
+    if(companyPageSize){const index=sortCompanies(state.companies,'added').findIndex(c=>c.id===id);companyPage=index>=0?Math.floor(index/companyPageSize):0;}
+    render();
     document.querySelector(`[data-row="${id}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'});
     await loadHistory(id);
 }
 function buildSnapshot() {const result=copy(state);delete result.history;delete result.restoreHistory;return result;}
 function initWorkbenchFeatures() {
-    $('starfilter').onchange=render;
+    $('starfilter').onchange=()=>{companyPage=0;render();};
     $('bulk-open').onclick=()=>{if(mode==='loading')return;document.querySelector('.add-menu').open=false;$('bulk-dialog').showModal();renderBulkPreview();$('bulk-text').focus();};
     $('bulk-text').oninput=renderBulkPreview;$('bulk-duplicates').onchange=renderBulkPreview;
     $('bulk-confirm').onclick=()=>{

@@ -224,6 +224,17 @@ test('dark theme variables are defined and the theme toggle is reachable',()=>{
  assert.match(html,/id="heatmap"/);
 });
 
+test('company pagination shows six rows per page, clamps page bounds and can reveal all',()=>{
+ const h=harness();
+ const records=h.run("Array.from({length:59},(_,i)=>({id:'c'+i}))");
+ h.ctx.records=records;
+ assert.equal(h.run("paginateList(records).items.length"),6);
+ assert.equal(h.run("paginateList(records).totalPages"),10);
+ h.run('companyPage=9');assert.equal(h.run("paginateList(records).items.length"),5);
+ h.run('companyPage=99');assert.equal(h.run("paginateList(records).items.length"),5);
+ h.run('companyPageSize=0;companyPage=0');assert.equal(h.run("paginateList(records).items.length"),59);
+});
+
 test('agenda does not pair an empty-state notice with pending interview scheduling',()=>{
  const h=harness();
  h.run("state.companies=[{id:'a',name:'远山科技',status:'一面',interview:{phase:'pending',at:'',location:''}}]");
