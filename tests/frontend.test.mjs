@@ -221,6 +221,19 @@ test('dark theme variables are defined and the theme toggle is reachable',()=>{
  assert.match(html,/id="heatmap"/);
 });
 
+test('agenda does not pair an empty-state notice with pending interview scheduling',()=>{
+ const h=harness();
+ h.run("state.companies=[{id:'a',name:'远山科技',status:'一面',interview:{phase:'pending',at:'',location:''}}]");
+ h.run('renderAgenda()');
+ let html=h.run("document.getElementById('agenda').innerHTML");
+ assert.match(html,/1 场面试待安排/);
+ assert.doesNotMatch(html,/暂无已确定/);
+ h.run('state.companies=[]');h.run('renderAgenda()');
+ html=h.run("document.getElementById('agenda').innerHTML");
+ assert.match(html,/近期暂无面试安排/);
+ assert.doesNotMatch(html,/场面试待安排/);
+});
+
 test('interview notes deduplicate round shortcuts, support deletion, and render standalone review timeline with hotwords',()=>{
  const h=harness();
  h.run("state.companies=[{id:'a',name:'星河机器人',roles:['具身智能算法'],status:'一面',interview:{phase:'feedback',at:'2026-11-16T03:00:00.000Z',location:'https://example.com/meeting'}},{id:'b',name:'远山科技',roles:['具身智能算法'],status:'一面'}]");

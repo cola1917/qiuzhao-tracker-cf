@@ -92,7 +92,10 @@ function renderAgenda() {
     const node=$('agenda');if(!node)return;
     const upcoming=state.companies.filter(c=>isInterview(c.status) && c.interview?.phase==='scheduled' && Date.parse(c.interview.at)>=Date.now()-86400000).sort((a,b)=>a.interview.at.localeCompare(b.interview.at));
     const pending=state.companies.filter(c=>isInterview(c.status) && (!c.interview || c.interview.phase==='pending'));
-    node.innerHTML=(upcoming.slice(0,3).map(c=>`<button type="button" data-meeting="${esc(c.id)}"><strong>${esc(formatTime(c.interview.at))}</strong>　${esc(c.name||'未命名公司')} · ${esc(c.status)}<small>${esc(c.interview.location||'地点待补充')}</small></button>`).join('')||'<span class="quiet">暂无已确定的面试安排</span>')+(pending.length?`<button type="button" data-meeting="${esc(pending[0].id)}">${pending.length} 场面试待安排<small>已进入下一轮，时间待补充 →</small></button>`:'');
+    const upcomingMarkup=upcoming.slice(0,3).map(c=>`<button type="button" data-meeting="${esc(c.id)}"><strong>${esc(formatTime(c.interview.at))}</strong>　${esc(c.name||'未命名公司')} · ${esc(c.status)}<small>${esc(c.interview.location||'地点待补充')}</small></button>`).join('');
+    const pendingMarkup=pending.length?`<button type="button" data-meeting="${esc(pending[0].id)}">${pending.length} 场面试待安排<small>已进入下一轮，时间待补充 →</small></button>`:'';
+    // Pending scheduling is itself the primary action; do not pair it with a contradictory "nothing scheduled" empty state.
+    node.innerHTML=upcomingMarkup||pendingMarkup ? upcomingMarkup+pendingMarkup : '<span class="quiet">近期暂无面试安排</span>';
 }
 function featureToast(message,undo=false) {$('feature-toast').hidden=false;$('toast-message').textContent=message;$('undo-delete').hidden=!undo;}
 function moveToTrash(co) {
