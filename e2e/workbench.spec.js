@@ -12,6 +12,9 @@ test('dashboard renders stats, company table and heatmap', async ({ page }) => {
     await expect(page.locator('#rows tr[data-row]')).toHaveCount(6);
     await expect(page.locator('#view-title')).toContainText('全部投递');
 
+    // Heatmap is collapsed by default; summary is visible before expanding it.
+    await expect(page.locator('#heatmap-summary')).toContainText('份投递');
+    await page.locator('#heatmap-details > summary').click();
     // Heatmap: current calendar year, navigation, labels and square cells.
     await expect(page.locator('#heatmap-year')).toHaveText(String(new Date().getFullYear()));
     await expect(page.locator('#heatmap .heat-cell').first()).toBeVisible();
@@ -22,6 +25,7 @@ test('dashboard renders stats, company table and heatmap', async ({ page }) => {
 
 test('heatmap year navigation switches the displayed year', async ({ page }) => {
     const year = new Date().getFullYear();
+    await page.locator('#heatmap-details > summary').click();
     await page.locator('#heat-prev').click();
     await expect(page.locator('#heatmap-year')).toHaveText(String(year - 1));
     await expect(page.locator('#heatmap-summary')).toContainText(`${year - 1} 年共`);
@@ -51,6 +55,7 @@ test('search filters companies', async ({ page }) => {
 test('interview reviews page shows timeline and hotword chips', async ({ page }) => {
     await page.locator('[data-page="reviews"]').click();
     await expect(page.locator('#reviews-page')).toBeVisible();
+    await expect(page.locator('.heatmap-strip')).toBeHidden();
     await expect(page.locator('#reviews-page')).toContainText('面试复盘与历程');
     await expect(page.locator('.review-item')).toHaveCount(2);
     await expect(page.locator('#reviews-page')).toContainText('复盘总览与高频考点');

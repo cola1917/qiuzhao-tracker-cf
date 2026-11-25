@@ -270,7 +270,7 @@ function switchPage(page, shouldRender=true) {
             btn.classList?.toggle('active',active);
             btn.setAttribute?.('aria-pressed',String(active));
         });
-        document.querySelectorAll('.stats, .agenda-strip, .records').forEach(sec=>{sec.hidden=currentPage==='reviews';});
+        document.querySelectorAll('.stats, .heatmap-strip, .agenda-strip, .records').forEach(sec=>{sec.hidden=currentPage==='reviews';});
     }
     const reviewsNode=$('reviews-page');
     if(reviewsNode)reviewsNode.hidden=currentPage!=='reviews';

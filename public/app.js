@@ -284,7 +284,10 @@ function renderTable() {
     $('view-title').innerHTML = ({ all: '全部投递', todo: '待投清单', live: '进行中', oc: '收获 Offer' }[view]) + ` <span>${list.length}</span>`;
     $('rows').innerHTML = list.map(co => {
         const remaining = days(co.deadline);
-        const input = (field, placeholder = '', type = 'text') => `<input class="inline-input ${field === 'name' ? 'company-name' : ''}" data-field="${field}" data-id="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} ${({ name: '公司名称', link: '投递链接', dept: '部门', deadline: '截止日期', appliedAt: '投递时间', note: '备注' })[field]}" type="${type}" value="${esc(co[field])}" placeholder="${placeholder}" maxlength="${field === 'note' ? 5000 : 2000}">`;
+        const input = (field, placeholder = '', type = 'text') => {
+            const markup = `<input class="inline-input ${field === 'name' ? 'company-name' : ''}" data-field="${field}" data-id="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} ${({ name: '公司名称', link: '投递链接', dept: '部门', deadline: '截止日期', appliedAt: '投递时间', note: '备注' })[field]}" type="${type}" ${type === 'date' ? 'lang="zh-CN"' : ''} value="${esc(co[field])}" placeholder="${placeholder}" maxlength="${field === 'note' ? 5000 : 2000}">`;
+            return type === 'date' ? `<span class="date-field" data-date-wrap="${field}" data-id="${esc(co.id)}" data-empty="${co[field] ? 'false' : 'true'}">${markup}</span>` : markup;
+        };
         return `<tr data-row="${esc(co.id)}" class="${co.starred ? 'starred-row' : ''}"><td class="company-cell"><div class="company-with-star"><button type="button" class="star-button" data-star="${esc(co.id)}" aria-label="${co.starred ? '取消' : '添加'}星标 ${esc(co.name)}" aria-pressed="${!!co.starred}">${co.starred ? '★' : '☆'}</button><div>${input('name', '公司名称…')}${input('link', '投递链接 / 来源')}</div></div></td><td class="role-cell"><details class="role-select" data-role-menu="${esc(co.id)}"><summary>${roleSummary(co)}</summary>${roleMenuMarkup(co)}</details>${input('dept', '部门 / 团队')}</td><td><select class="inline-status ${statusClass(co.status)}" data-status="${esc(co.id)}" aria-label="${esc(co.name || '新投递')} 投递状态">${STATUSES.map(s => `<option ${co.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select><div class="phase-label">${phaseName(co)}</div></td><td class="meeting-cell">${renderMeetingCell(co)}</td><td class="date"><label class="date-label">截止</label>${input('deadline', '', 'date')}<span class="due ${remaining < 0 ? 'late' : ''}" data-due>${dueText(co.deadline)}</span><label class="date-label">投递</label>${input('appliedAt', '', 'date')}</td><td>${input('note', '内推码、面试安排…')}</td><td><div class="row-actions"><button type="button" class="history-button" data-history="${esc(co.id)}" aria-expanded="${openedCompany===co.id}">${openedCompany===co.id ? '收起 ⌃' : '历史 ⌄'}</button><button class="delete-row" data-delete="${esc(co.id)}" aria-label="删除 ${esc(co.name || '此记录')}">×</button></div></td></tr>` + (openedCompany===co.id ? renderCompanyDetails(co) : '');
     }).join('');
     $('empty').hidden = !!list.length;
@@ -402,8 +405,10 @@ $('rows').addEventListener('input', e => {
         return;
     co[field] = e.target.value;
     touchCompany(co);
+    const dateWrap = e.target.closest?.('[data-date-wrap]');
+    if (dateWrap) dateWrap.dataset.empty = e.target.value ? 'false' : 'true';
     if (field === 'deadline') {
-        const due = e.target.parentElement.querySelector('[data-due]');
+        const due = e.target.closest('td').querySelector('[data-due]');
         due.textContent = dueText(co.deadline);
         due.classList.toggle('late', days(co.deadline) < 0);
     }

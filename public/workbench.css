@@ -10,6 +10,12 @@ button.stat{text-align:left;font-family:inherit;cursor:pointer;position:relative
 button.stat.active:after{content:'';position:absolute;bottom:0;left:0;width:44px;height:3px;background:var(--green)}
 button.stat:hover .stat-label,button.stat.active .stat-label{color:var(--green)}
 button.stat:focus-visible{outline:2px solid var(--green);outline-offset:4px}
+.interview-notes.notes-collapsed{margin-top:16px;padding-top:12px}
+.notes-collapsed summary{font-size:15px;font-weight:600;cursor:pointer;list-style:none}
+.notes-collapsed summary::-webkit-details-marker{display:none}
+.notes-collapsed summary::after{content:'＋';float:right;color:var(--green);font-weight:400}
+.notes-collapsed[open] summary::after{content:'−'}
+.notes-collapsed .quiet{margin:10px 0 0}
 .interview-notes{margin-top:28px;padding-top:22px;border-top:1px solid var(--line)}
 .note-shortcut{font-size:12px;color:var(--accent-deep);padding:5px 0;text-align:left}
 .note-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
@@ -48,21 +54,24 @@ input[type=checkbox]{accent-color:var(--green)}
 .star-button[aria-pressed=true]{color:var(--green)}
 td.company-cell{min-width:195px;width:auto}td.role-cell{min-width:170px;width:190px}
 .inline-input[data-field=note]{min-width:140px}
-.phase-label{font-size:12px;color:var(--muted);margin:6px 0 0 5px}
+.phase-label{font-size:12px;color:var(--muted);margin:3px 0 0 5px}
 .meeting-cell{min-width:155px}
 .add-meeting{border:1px dashed var(--accent-line);background:transparent;color:var(--green);border-radius:4px;padding:6px 9px;white-space:nowrap;font-size:12px}
 .meeting-date{border:0;background:none;text-align:left;padding:5px 0;max-width:180px}
 .meeting-date strong{display:block;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
 .meeting-date small{display:block;color:var(--muted);font-size:12px;margin-top:5px;overflow-wrap:anywhere}
-.date-label{display:block;font-size:11px;color:var(--muted);margin-left:6px}
+.date-label{display:block;font-size:10px;line-height:1.2;color:var(--muted);margin:1px 0 0 5px}
+.date-field{position:relative;display:block;max-width:124px}
+.date-field[data-empty="true"]::after{content:'年 / 月 / 日';position:absolute;left:6px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none}
+.date-field[data-empty="true"] .inline-input[type="date"],.date-field[data-empty="true"] .inline-input[type="date"]::-webkit-datetime-edit{color:transparent}
 .date .inline-input[type=date]{padding-top:3px;padding-bottom:3px}
 .row-actions{display:flex;align-items:center;gap:5px}
 .history-button{border:0;background:none;color:var(--green);font-size:12px;padding:6px 0;white-space:nowrap}
 .company-details>td{padding:0;background:var(--soft)}
-.details-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:32px;padding:24px 28px 28px 38px}
+.details-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start;gap:28px;padding:18px 24px 20px 32px}
 .details-grid h3{font-size:15px;font-weight:600;margin:0 0 14px}
 .history-list{list-style:none;margin:0;padding:0}
-.history-list li{position:relative;border-left:1px solid var(--line);padding:0 0 24px 20px;margin-left:4px;font-size:15px;color:var(--ink)}
+.history-list li{position:relative;border-left:1px solid var(--line);padding:0 0 18px 20px;margin-left:4px;font-size:15px;color:var(--ink)}
 .history-list li:last-child{border-color:transparent;padding-bottom:0}
 .history-list li:before{content:'';position:absolute;width:7px;height:7px;background:var(--muted);border-radius:50%;left:-4px;top:11px}
 .history-list li:first-child:before{background:var(--green)}
@@ -73,6 +82,7 @@ td.company-cell{min-width:195px;width:auto}td.role-cell{min-width:170px;width:19
 .history-context{font-size:14px;font-weight:500;color:var(--ink)}
 .history-meta{font-size:13px;line-height:1.7;color:var(--muted);margin-top:7px}
 .history-meta .text-btn{display:inline;padding:0 0 0 8px;font-size:13px;color:var(--accent-deep)}
+.meeting-form .quiet{margin:0 0 6px}
 .meeting-form{padding-left:28px;border-left:1px solid var(--line)}
 .meeting-phase{font-size:13px;color:var(--ink);margin-bottom:12px}
 .meeting-fields{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
@@ -156,15 +166,20 @@ td.company-cell{min-width:195px;width:auto}td.role-cell{min-width:170px;width:19
 .review-card-body{margin-top:8px;border:0;border-top:1px solid var(--line);padding:12px 0 0;background:transparent}
 
 /* Application heatmap (GitHub-style contribution grid) */
-.heatmap-strip{margin:0 0 26px;padding:18px 22px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:4px}
-.heatmap-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.heatmap-head h2{font-size:15px;font-weight:600;margin:0}
+.heatmap-strip{margin:0 0 26px;padding:10px 18px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:4px}
+.heatmap-head{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none;user-select:none}
+.heatmap-head::-webkit-details-marker{display:none}
+.heatmap-head h2{font-size:15px;font-weight:600;margin:0;flex:none}
+.heatmap-head #heatmap-summary{margin-left:auto;text-align:right}
 .heatmap-head span{font-size:12px;color:var(--muted)}
 .heatmap-head b{color:var(--accent-deep);font-variant-numeric:tabular-nums}
+.heatmap-toggle{font-size:15px;transition:transform .15s}
+.heatmap-strip[open] .heatmap-toggle{transform:rotate(180deg)}
+.heatmap-strip[open] .heatmap-head{margin-bottom:10px}
+.heatmap-open-head{display:flex;justify-content:flex-end;margin-bottom:8px}
 .heatmap-scroll{overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .heatmap-scroll::-webkit-scrollbar{display:none}
 .heatmap-inner{min-width:100%;display:flex;flex-direction:column;gap:6px}
-.heatmap-title{display:flex;align-items:center;gap:16px}
 .heatmap-nav{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink)}
 .heatmap-nav button{width:24px;height:24px;line-height:1;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--muted);cursor:pointer;padding:0}
 .heatmap-nav button:hover{border-color:var(--accent);color:var(--accent)}

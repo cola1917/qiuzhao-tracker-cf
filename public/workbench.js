@@ -86,7 +86,9 @@ function renderMeetingTime(id, value='') {
 function renderCompanyDetails(co) {
     const m=co.interview||emptyInterview(), local=timeInput(m.at), id=esc(co.id);
     const form=isInterview(co.status)?`<div class="meeting-phase">${esc(co.status)} · ${phaseName(co)}</div><div class="meeting-fields"><label>面试日期<input type="date" data-meeting-date="${id}" value="${local.slice(0,10)}" required></label><label>时间${renderMeetingTime(co.id,local.slice(11))}</label><label class="meeting-location">会议链接 / 地点<input data-meeting-location="${id}" value="${esc(m.location)}" placeholder="稍后补充也可以" maxlength="2000"></label></div><div class="meeting-actions"><button type="button" class="btn primary" data-save-meeting="${id}">${m.phase==='scheduled'?'保存安排':'确认面试时间'}</button>${m.phase==='scheduled'?`<button type="button" class="btn" data-complete-meeting="${id}">标记已完成</button>`:''}${m.at?`<button type="button" class="text-btn" data-cancel-meeting="${id}">取消安排</button>`:''}</div><p class="meeting-help">先记录阶段进展，面试时间可以稍后补充。</p>`:'<p class="quiet">进入面试阶段后，可在此补充面试时间。</p>';
-    return `<tr class="company-details"><td colspan="7"><div class="details-grid"><section><div class="section-title"><h3>进展时间线</h3><span>最新在前</span></div><div data-history-list="${id}">${historyMarkup(co.id)}</div></section><section class="meeting-form"><h3>面试安排</h3>${form}${renderNoteEditor(co)}</section></div></td></tr>`;
+    const hasNotes=(state.notes||[]).some(n=>n.companyId===co.id);
+    const notesSection=hasNotes?renderNoteEditor(co):`<details class="interview-notes notes-collapsed"><summary>面试记录</summary><p class="quiet">在左侧面试历史旁点「写面试记录」，记下面经、复盘或碎碎念。</p></details>`;
+    return `<tr class="company-details"><td colspan="7"><div class="details-grid"><section><div class="section-title"><h3>进展时间线</h3><span>最新在前</span></div><div data-history-list="${id}">${historyMarkup(co.id)}</div></section><section class="meeting-form"><h3>面试安排</h3>${form}${notesSection}</section></div></td></tr>`;
 }
 function renderAgenda() {
     const node=$('agenda');if(!node)return;

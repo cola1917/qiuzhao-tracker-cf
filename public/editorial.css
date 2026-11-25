@@ -77,12 +77,12 @@ main{margin:0}
 .pagehead .btn{padding:11px 20px;margin-bottom:6px}
 .btn{border-radius:3px;border-color:var(--line);background:transparent;font-size:11px}
 .btn.primary,:root[data-theme="dark"] .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
-.stats{gap:0;margin:0 0 24px;border-bottom:1px solid var(--line);background:transparent}
+.stats{gap:0;margin:0 0 16px;border-bottom:1px solid var(--line);background:transparent}
 .stat,.stat:first-child,:root[data-theme="dark"] .stat:first-child{border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);padding:23px 25px 23px 0;margin:20px 25px 20px 0}
 .stat:last-child{border-right:0;margin-right:0;padding-right:0}
 .stat-label,.stat:first-child .stat-label,:root[data-theme="dark"] .stat:first-child .stat-label{color:var(--muted);font-size:11px;letter-spacing:1px}
 .stat-label i{font-size:16px;color:var(--muted);font-style:normal}
-.stat strong{font-family:inherit;font-weight:600;font-size:44px;line-height:1.65;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.stat strong{font-family:inherit;font-weight:600;font-size:32px;line-height:1.4;letter-spacing:-1px;font-variant-numeric:tabular-nums}
 .stat:first-child strong{color:var(--accent)}
 .stat small,.stat:first-child small,:root[data-theme="dark"] .stat:first-child small{color:var(--muted);font-size:9px}
 .overview{grid-template-columns:1.6fr 1fr;gap:38px;margin-bottom:30px}
@@ -118,8 +118,8 @@ main{margin:0}
 .tablewrap{border-top:1px solid var(--line);background:var(--surface)}
 th{background:var(--table-head);color:var(--muted);letter-spacing:1px;font-size:9px;padding:12px 10px;font-weight:500}
 th:first-child,td:first-child{padding-left:15px}
-td{padding:13px 10px;border-color:var(--line)}
-.inline-input{border-radius:2px}
+td{padding:9px 10px;border-color:var(--line)}
+.inline-input{border-radius:2px;padding:4px 5px}
 .inline-input.company-name{font-weight:550}
 .inline-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .inline-input[data-field="link"],.inline-input[data-field="dept"]{color:var(--muted);font-size:10px}
@@ -153,7 +153,7 @@ td{padding:13px 10px;border-color:var(--line)}
 .pagehead .eyebrow{font-size:8px;letter-spacing:1px}
 .stat,.stat:first-child,:root[data-theme="dark"] .stat:first-child{padding:12px 12px 12px 0;margin:10px 12px 10px 0}
 .stat:nth-child(2){border-right:0}
-.stat strong{font-size:37px}
+.stat strong{font-size:30px}
 .stat small{font-size:8px}
 .stats{margin-bottom:20px}
 .overview{grid-template-columns:1fr;gap:23px}
@@ -174,7 +174,7 @@ td{padding:13px 10px;border-color:var(--line)}
 
 
 /* Put status counts directly below navigation. */
-.content{padding-top:0}.stats{border-top:1px solid var(--line)}.stat,.stat:first-child,:root[data-theme="dark"] .stat:first-child{margin-top:12px;margin-bottom:15px;padding-top:12px;padding-bottom:16px}@media(max-width:760px){.stat,.stat:first-child,:root[data-theme="dark"] .stat:first-child{margin-top:8px;margin-bottom:8px;padding-top:8px;padding-bottom:10px}}
+.content{padding-top:0}.stats{border-top:1px solid var(--line)}.stat,.stat:first-child,:root[data-theme="dark"] .stat:first-child{margin-top:8px;margin-bottom:10px;padding-top:8px;padding-bottom:10px}@media(max-width:760px){.stat,.stat:first-child,:root[data-theme="dark"] .stat:first-child{margin-top:6px;margin-bottom:6px;padding-top:6px;padding-bottom:8px}}
 
 /* Comfortable type sizes across the workbench. */
 .nav{font-size:14px}
@@ -187,7 +187,7 @@ td{padding:13px 10px;border-color:var(--line)}
 th{font-size:13px;letter-spacing:0;font-weight:600}
 .inline-input.company-name{font-size:15px;font-weight:600}
 .inline-input[data-field="link"],.inline-input[data-field="dept"],.inline-input[type="date"],.inline-input::placeholder,.placeholder,.role-chip,.role-choice,.role-add input,.upcoming-item small,.due{font-size:12px;color:var(--muted)}
-.inline-input[type="date"]{width:145px}
+.inline-input[type="date"]{width:124px}
 .inline-status{font-size:13px;width:92px}
 @media(max-width:760px){.nav{font-size:13px}.topbar,.saveflag{font-size:11px}.section-title>span{font-size:11px}}
 

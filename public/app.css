@@ -256,7 +256,7 @@ td.role-cell{width:230px;min-width:200px}
 .inline-status.out{background:#f7eeee;color:#ae7a73}
 .delete-row{background:none;border:0;font-size:20px;color:var(--muted);padding:5px;cursor:pointer}
 .delete-row:hover{color:var(--danger)}
-.role-select summary{display:flex;flex-wrap:wrap;gap:3px;align-items:center;cursor:pointer;list-style:none;padding:6px;min-height:30px;border:1px solid transparent;border-radius:5px}
+.role-select summary{display:flex;flex-wrap:wrap;gap:3px;align-items:center;cursor:pointer;list-style:none;padding:4px;min-height:26px;border:1px solid transparent;border-radius:5px}
 .role-select summary:hover{border-color:var(--line)}
 .role-select summary::-webkit-details-marker{display:none}
 .role-chip{font-size:9px;background:var(--green-soft);color:var(--green);border-radius:4px;padding:2px 5px;max-width:200px;overflow-wrap:anywhere}

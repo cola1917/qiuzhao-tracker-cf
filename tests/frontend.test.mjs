@@ -19,6 +19,9 @@ test('meeting time offers only whole hours and preserves an existing precise app
  const details=h.run("renderCompanyDetails({id:'a',status:'一面',interview:emptyInterview()})");
  assert.match(details,/type="date"/);
  assert.doesNotMatch(details,/type="time"/);
+ const collapsed=h.run("renderCompanyDetails({id:'b',status:'未投',interview:emptyInterview()})");
+ assert.match(collapsed,/notes-collapsed/);
+ assert.doesNotMatch(collapsed,/note-editor/);
 });
 
 test('legacy stage baseline and appointment events never appear as duplicate stage transitions', () => {
